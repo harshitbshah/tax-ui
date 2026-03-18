@@ -25,9 +25,11 @@ import { itemBaseClassName, Menu, MenuItem, popupBaseClassName } from "./Menu";
 import { PlusIcon } from "./PlusIcon";
 import { ReceiptView } from "./ReceiptView";
 import { StatsHeader } from "./StatsHeader";
+import { SummaryCharts } from "./SummaryCharts";
 import { SummaryReceiptView } from "./SummaryReceiptView";
 import { SummaryTable } from "./SummaryTable";
 import { TrashIcon } from "./TrashIcon";
+import { YearCharts } from "./YearCharts";
 
 interface CommonProps {
   isChatOpen: boolean;
@@ -64,7 +66,8 @@ interface LoadingProps extends CommonProps {
 
 type Props = ReceiptProps | SummaryProps | LoadingProps;
 
-type SummaryViewMode = "table" | "receipt";
+type SummaryViewMode = "table" | "receipt" | "charts";
+type YearViewMode = "receipt" | "charts";
 
 const ITEM_WIDTH = 78; // 70px + 8px gap
 const OVERFLOW_BUTTON_WIDTH = 48; // 40px + gap
@@ -153,6 +156,7 @@ function AnimatedTab({ id, label, isSelected, wrapper }: AnimatedTabProps) {
 
 export function MainPanel(props: Props) {
   const [summaryViewMode, setSummaryViewMode] = useState<SummaryViewMode>("table");
+  const [yearViewMode, setYearViewMode] = useState<YearViewMode>("receipt");
   const [visibleCount, setVisibleCount] = useState(props.navItems.length);
   const navRef = useRef<HTMLElement>(null);
 
@@ -413,7 +417,27 @@ export function MainPanel(props: Props) {
       ) : props.view === "summary" ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <StatsHeader returns={props.returns} selectedYear="summary" />
-          {summaryViewMode === "table" ? (
+          <div className="flex shrink-0 items-center gap-1 border-b border-(--color-border) px-4 py-2">
+            {(["table", "charts"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setSummaryViewMode(mode)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  summaryViewMode === mode
+                    ? "bg-(--color-bg-muted) text-(--color-text)"
+                    : "text-(--color-text-muted) hover:text-(--color-text)",
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          {summaryViewMode === "charts" ? (
+            <div className="flex-1 overflow-y-auto bg-(--color-bg-subtle)">
+              <SummaryCharts returns={props.returns} />
+            </div>
+          ) : summaryViewMode === "table" ? (
             <div className="min-h-0 flex-1 overflow-hidden">
               <SummaryTable returns={props.returns} />
             </div>
@@ -426,9 +450,31 @@ export function MainPanel(props: Props) {
       ) : props.view === "receipt" ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <StatsHeader returns={props.returns} selectedYear={props.selectedYear as number} />
-          <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-950">
-            <ReceiptView data={props.data} />
+          <div className="flex shrink-0 items-center gap-1 border-b border-(--color-border) px-4 py-2">
+            {(["receipt", "charts"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setYearViewMode(mode)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  yearViewMode === mode
+                    ? "bg-(--color-bg-muted) text-(--color-text)"
+                    : "text-(--color-text-muted) hover:text-(--color-text)",
+                )}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
+          {yearViewMode === "charts" ? (
+            <div className="flex-1 overflow-y-auto bg-(--color-bg-subtle)">
+              <YearCharts data={props.data} />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-950">
+              <ReceiptView data={props.data} />
+            </div>
+          )}
         </div>
       ) : null}
     </div>
