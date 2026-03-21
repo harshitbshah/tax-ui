@@ -14,7 +14,7 @@ import {
 
 import { formatCompact, formatCurrency } from "../lib/format";
 import type { TaxReturn } from "../lib/schema";
-import { getEffectiveRate, getNetIncome, getTotalTax } from "../lib/tax-calculations";
+import { getNetIncome, getTotalTax } from "../lib/tax-calculations";
 
 interface Props {
   returns: Record<number, TaxReturn>;
@@ -94,16 +94,8 @@ export function SummaryCharts({ returns }: Props) {
       {/* Income / Taxes / Net */}
       <ChartCard title={`Income, Taxes & Net${useStacked ? " (stacked)" : ""}`}>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart
-            data={incomeData}
-            barCategoryGap={useStacked ? "35%" : "30%"}
-            barGap={4}
-          >
-            <CartesianGrid
-              vertical={false}
-              stroke="var(--color-border)"
-              strokeDasharray="3 3"
-            />
+          <BarChart data={incomeData} barCategoryGap={useStacked ? "35%" : "30%"} barGap={4}>
+            <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
             <XAxis
               dataKey="year"
               tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
@@ -119,7 +111,7 @@ export function SummaryCharts({ returns }: Props) {
             />
             <Tooltip
               contentStyle={tooltipStyle}
-              formatter={(value) => [formatCurrency(Number(value)), String(value)]}
+              formatter={(value, name) => [formatCurrency(Number(value)), name]}
               cursor={{ fill: "var(--color-bg-muted)" }}
             />
             <Bar
@@ -160,11 +152,7 @@ export function SummaryCharts({ returns }: Props) {
         <ChartCard title="Effective Tax Rate">
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={rateData}>
-              <CartesianGrid
-                vertical={false}
-                stroke="var(--color-border)"
-                strokeDasharray="3 3"
-              />
+              <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
               <XAxis
                 dataKey="year"
                 tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
@@ -216,11 +204,7 @@ export function SummaryCharts({ returns }: Props) {
         <ChartCard title="Refund / Owed">
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={refundData} barCategoryGap="40%">
-              <CartesianGrid
-                vertical={false}
-                stroke="var(--color-border)"
-                strokeDasharray="3 3"
-              />
+              <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
               <XAxis
                 dataKey="year"
                 tick={{ fill: "var(--color-text-muted)", fontSize: 12 }}
@@ -243,12 +227,9 @@ export function SummaryCharts({ returns }: Props) {
                 }}
                 cursor={{ fill: "var(--color-bg-muted)" }}
               />
-              <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="amount" radius={[4, 4, 0, 0]} fill={COLORS.net}>
                 {refundData.map((entry) => (
-                  <Cell
-                    key={entry.year}
-                    fill={entry.amount >= 0 ? COLORS.net : COLORS.taxes}
-                  />
+                  <Cell key={entry.year} fill={entry.amount >= 0 ? COLORS.net : COLORS.taxes} />
                 ))}
               </Bar>
             </BarChart>

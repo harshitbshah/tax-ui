@@ -38,7 +38,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const STATIC_ROOT = process.env.TAX_UI_STATIC_DIR || __dirname;
 
-function buildChatSystemPrompt(returns: Record<number, unknown>, selectedYear?: number | string): string {
+function buildChatSystemPrompt(
+  returns: Record<number, unknown>,
+  selectedYear?: number | string,
+): string {
   const years = Object.keys(returns)
     .map(Number)
     .sort((a, b) => a - b);
@@ -47,9 +50,10 @@ function buildChatSystemPrompt(returns: Record<number, unknown>, selectedYear?: 
 
   const activeYear =
     selectedYear && selectedYear !== "summary" ? Number(selectedYear) : years[years.length - 1];
-  const activeContext = activeYear && returns[activeYear]
-    ? `\nCURRENTLY VIEWED YEAR: ${activeYear}\n${JSON.stringify(returns[activeYear])}`
-    : `\n${JSON.stringify(returns)}`;
+  const activeContext =
+    activeYear && returns[activeYear]
+      ? `\nCURRENTLY VIEWED YEAR: ${activeYear}\n${JSON.stringify(returns[activeYear])}`
+      : `\n${JSON.stringify(returns)}`;
 
   return `You are a helpful tax data analysis assistant. You have access to the user's tax return data.
 

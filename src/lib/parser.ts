@@ -10,6 +10,95 @@ import { selectPages } from "./selector";
 // Max pages per extraction chunk (after smart selection)
 const MAX_PAGES = 40;
 
+// Allow small rounding differences when comparing computed vs extracted values
+const RECONCILE_TOLERANCE = 10;
+
+function sumAmounts(items: LabeledAmount[]): number {
+  return items.reduce((s, i) => s + i.amount, 0);
+}
+
+/**
+ * Post-parse reconciliation: corrects fields that are deterministically derivable
+ * and warns on large discrepancies.
+ *
+ * WHAT WE LEARNED (verified against actual 1040/NJ-1040/IT-203 PDFs for 2018-2024):
+ *
+ * income.total — NOT recomputed from items.
+ *   The AI correctly reads 1040 line 9. The items array intentionally includes
+ *   display-only entries that are NOT part of line 9: qualified dividends (line 3a,
+ *   a subset of ordinary dividends) and non-taxable pension/rollover gross amounts.
+ *   Summing items produces a higher number than the actual total every time.
+ *
+ * federal.taxableIncome — NOT recomputed from agi - deductions.
+ *   Some deductions in the items array are above-the-line (already baked into AGI,
+ *   e.g. 2020 charitable $300 on line 10b). Double-subtracting them gives a wrong
+ *   result. The AI's extracted value matches 1040 line 15 correctly.
+ *
+ * federal.refundOrOwed — recomputed, but only overrides when discrepancy > $1,000.
+ *   Formula: sum(payments) + sum(credits) - tax - sum(additionalTaxes).
+ *   Caught a real $18,682 omission in 2024 (AI left refundOrOwed=0).
+ *   Can be wrong by ~$100-200 when additionalTaxes contains both Schedule 2
+ *   sub-items (Medicare, NIIT) AND the Schedule 2 line 21 total, causing double-
+ *   counting. The $1,000 threshold avoids overriding the correct AI value in
+ *   those cases.
+ *
+ * State refundOrOwed — NOT validated by formula.
+ *   The state `adjustments` field mixes two structurally different things:
+ *   credits that reduce tax directly (NJ-COJ, IT-203 credit for other jurisdictions)
+ *   and deductions that reduce taxable income. A simple payments - tax + adjustments
+ *   formula produces only false positives across all 7 test years.
+ *
+ * summary fields — always recomputed (never trust AI for derived totals).
+ */
+export function reconcile(r: TaxReturn): TaxReturn {
+  // --- federal.refundOrOwed ---
+  // Override only for large discrepancies (> $1,000). Small differences are likely
+  // Schedule 2 double-counting in additionalTaxes, not an AI extraction error.
+  const computedFederal =
+    sumAmounts(r.federal.payments) +
+    sumAmounts(r.federal.credits) -
+    r.federal.tax -
+    sumAmounts(r.federal.additionalTaxes);
+  const federalDiff = Math.abs(computedFederal - r.federal.refundOrOwed);
+  if (federalDiff > RECONCILE_TOLERANCE) {
+    if (federalDiff > 1000) {
+      console.warn(
+        `[reconcile] ${r.year} federal refundOrOwed: AI extracted ${r.federal.refundOrOwed}, computed ${computedFederal} (diff ${Math.round(federalDiff)}). Overriding — likely missed line 37/35a.`,
+      );
+      r.federal.refundOrOwed = computedFederal;
+    } else {
+      console.warn(
+        `[reconcile] ${r.year} federal refundOrOwed: AI extracted ${r.federal.refundOrOwed}, computed ${computedFederal} (diff ${Math.round(federalDiff)}). Small diff — possible Schedule 2 double-counting in additionalTaxes, keeping AI value.`,
+      );
+    }
+  }
+
+  // --- sanity: federal effective rate ---
+  if (r.rates?.federal?.effective !== undefined && r.federal.agi > 0) {
+    const computedEffective = parseFloat(((r.federal.tax / r.federal.agi) * 100).toFixed(1));
+    if (Math.abs(computedEffective - r.rates.federal.effective) > 2) {
+      console.warn(
+        `[reconcile] ${r.year} federal effective rate: stated ${r.rates.federal.effective}%, computed ${computedEffective}%.`,
+      );
+    }
+  }
+
+  // --- sanity: agi vs income.total proximity ---
+  if (r.income.total > 0 && r.federal.agi > r.income.total * 1.1) {
+    console.warn(
+      `[reconcile] ${r.year} federal.agi (${r.federal.agi}) is >10% higher than income.total (${r.income.total}) — possible missing income items.`,
+    );
+  }
+
+  // --- summary fields always recomputed from canonical sources ---
+  r.summary.federalAmount = r.federal.refundOrOwed;
+  r.summary.stateAmounts = r.states.map((s) => ({ state: s.name, amount: s.refundOrOwed }));
+  r.summary.netPosition =
+    r.summary.federalAmount + r.summary.stateAmounts.reduce((s, a) => s + a.amount, 0);
+
+  return r;
+}
+
 // Threshold for using smart classification (skip for small PDFs)
 const CLASSIFICATION_THRESHOLD = 20;
 
@@ -198,13 +287,13 @@ async function smartExtract(pdfBase64: string, client: Anthropic): Promise<TaxRe
   if (totalPages <= CLASSIFICATION_THRESHOLD) {
     const chunks = await splitPdf(pdfBase64);
     if (chunks.length === 1) {
-      return parseChunk(chunks[0]!, client);
+      return reconcile(await parseChunk(chunks[0]!, client));
     }
     const results: TaxReturn[] = [];
     for (const chunk of chunks) {
       results.push(await parseChunk(chunk, client));
     }
-    return mergeReturns(results);
+    return reconcile(mergeReturns(results));
   }
 
   // Classify pages using Haiku
@@ -216,7 +305,7 @@ async function smartExtract(pdfBase64: string, client: Anthropic): Promise<TaxRe
     console.error("Classification failed, using fallback:", error);
     const fallbackPages = Array.from({ length: Math.min(totalPages, MAX_PAGES) }, (_, i) => i + 1);
     const fallbackPdf = await extractPages(pdfBase64, fallbackPages);
-    return parseChunk(fallbackPdf, client);
+    return reconcile(await parseChunk(fallbackPdf, client));
   }
 
   // Select important pages based on classification
@@ -227,13 +316,13 @@ async function smartExtract(pdfBase64: string, client: Anthropic): Promise<TaxRe
   if (selectedPages.length === 0) {
     const fallbackPages = Array.from({ length: Math.min(totalPages, MAX_PAGES) }, (_, i) => i + 1);
     const fallbackPdf = await extractPages(pdfBase64, fallbackPages);
-    return parseChunk(fallbackPdf, client);
+    return reconcile(await parseChunk(fallbackPdf, client));
   }
 
   // Extract only selected pages
   if (selectedPages.length <= MAX_PAGES) {
     const selectedPdf = await extractPages(pdfBase64, selectedPages);
-    return parseChunk(selectedPdf, client);
+    return reconcile(await parseChunk(selectedPdf, client));
   }
 
   // If still too many pages, chunk the selected pages
@@ -244,7 +333,7 @@ async function smartExtract(pdfBase64: string, client: Anthropic): Promise<TaxRe
     results.push(await parseChunk(chunkPdf, client));
   }
 
-  return mergeReturns(results);
+  return reconcile(mergeReturns(results));
 }
 
 export async function parseTaxReturn(pdfBase64: string, apiKey: string): Promise<TaxReturn> {
