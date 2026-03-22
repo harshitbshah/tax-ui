@@ -144,7 +144,7 @@ function AnimatedTab({ id, label, isSelected, wrapper }: AnimatedTabProps) {
     <Tabs.Tab
       value={id}
       className={cn(
-        "relative shrink-0 rounded-lg px-2.5 py-1 text-sm font-medium outline-none",
+        "relative shrink-0 cursor-pointer rounded-lg px-2.5 py-1 text-sm font-medium outline-none",
         isSelected ? "text-(--color-text)" : "text-(--color-text-muted) hover:text-(--color-text)",
       )}
       onMouseEnter={() => ctx?.setHovered(id)}
@@ -423,7 +423,7 @@ export function MainPanel(props: Props) {
             <button
               onClick={() => props.onSwitchCountry("us")}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                 props.activeCountry === "us"
                   ? "bg-(--color-bg) text-(--color-text) shadow-sm"
                   : "text-(--color-text-muted) hover:text-(--color-text)",
@@ -434,7 +434,7 @@ export function MainPanel(props: Props) {
             <button
               onClick={() => props.onSwitchCountry("india")}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                 props.activeCountry === "india"
                   ? "bg-(--color-bg) text-(--color-text) shadow-sm"
                   : "text-(--color-text-muted) hover:text-(--color-text)",
