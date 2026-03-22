@@ -4,6 +4,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import index from "./index.html";
+import { extractIndianYearFromPdf, parseIndianReturn } from "./lib/india-parser";
+import {
+  clearIndiaData,
+  deleteIndiaReturn,
+  getIndiaReturns,
+  saveIndiaReturn,
+} from "./lib/india-storage";
 import { extractYearFromPdf, parseTaxReturn } from "./lib/parser";
 import {
   clearAllData,
@@ -110,6 +117,7 @@ const routes: Record<string, any> = {
   "/api/clear-data": {
     POST: async () => {
       await clearAllData();
+      await clearIndiaData();
       return Response.json({ success: true });
     },
   },
@@ -257,6 +265,75 @@ const routes: Record<string, any> = {
       } catch (error) {
         console.error("Suggestions error:", error);
         return Response.json({ suggestions: [] });
+      }
+    },
+  },
+  "/api/india/returns": {
+    GET: async () => {
+      return Response.json(await getIndiaReturns());
+    },
+  },
+  "/api/india/returns/:year": {
+    DELETE: async (req: Request & { params: { year: string } }) => {
+      const year = Number(req.params.year);
+      if (isNaN(year)) {
+        return Response.json({ error: "Invalid year" }, { status: 400 });
+      }
+      await deleteIndiaReturn(year);
+      return Response.json({ success: true });
+    },
+  },
+  "/api/india/extract-year": {
+    POST: async (req: Request) => {
+      const formData = await req.formData();
+      const file = formData.get("pdf") as File | null;
+      if (!file) {
+        return Response.json({ error: "No PDF file provided" }, { status: 400 });
+      }
+
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        return Response.json({ error: "No API key configured" }, { status: 400 });
+      }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString("base64");
+        const result = await extractIndianYearFromPdf(base64, apiKey);
+        return Response.json(result ?? { assessmentYear: null, financialYear: null });
+      } catch (error) {
+        console.error("India year extraction error:", error);
+        return Response.json({ assessmentYear: null, financialYear: null });
+      }
+    },
+  },
+  "/api/india/parse": {
+    POST: async (req: Request) => {
+      const formData = await req.formData();
+      const file = formData.get("pdf") as File | null;
+      if (!file) {
+        return Response.json({ error: "No PDF file provided" }, { status: 400 });
+      }
+
+      const apiKey = getApiKey();
+      if (!apiKey) {
+        return Response.json({ error: "No API key configured" }, { status: 400 });
+      }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString("base64");
+        const indiaReturn = await parseIndianReturn(base64, apiKey);
+        await saveIndiaReturn(indiaReturn);
+        return Response.json(indiaReturn);
+      } catch (error) {
+        console.error("India parse error:", error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        if (isAuthError(message)) {
+          await removeApiKey();
+          return Response.json({ error: "Invalid API key" }, { status: 401 });
+        }
+        return Response.json({ error: message }, { status: 500 });
       }
     },
   },

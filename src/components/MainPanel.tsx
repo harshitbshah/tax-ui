@@ -13,13 +13,18 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import type { ActiveCountry } from "../App";
 import { cn } from "../lib/cn";
 import { isElectron } from "../lib/electron";
-import type { PendingUpload, TaxReturn } from "../lib/schema";
+import type { IndianTaxReturn, PendingUpload, TaxReturn } from "../lib/schema";
 import type { NavItem } from "../lib/types";
 import { BrailleSpinner } from "./BrailleSpinner";
 import { Button } from "./Button";
 import { FilePlusIcon } from "./FilePlusIcon";
+import { IndiaReceiptView } from "./IndiaReceiptView";
+import { IndiaSummaryCharts } from "./IndiaSummaryCharts";
+import { IndiaSummaryView } from "./IndiaSummaryView";
+import { IndiaYearCharts } from "./IndiaYearCharts";
 import { LoadingView } from "./LoadingView";
 import { itemBaseClassName, Menu, MenuItem, popupBaseClassName } from "./Menu";
 import { PlusIcon } from "./PlusIcon";
@@ -42,11 +47,16 @@ interface CommonProps {
   onOpenStart: () => void;
   onOpenReset: () => void;
   onDeleteYear?: (year: string) => void;
+  onUploadIndia?: () => void;
   isDemo: boolean;
   hasUserData: boolean;
   hasStoredKey: boolean;
   returns: Record<number, TaxReturn>;
   selectedYear: "summary" | number;
+  activeCountry: ActiveCountry;
+  hasIndiaData: boolean;
+  onSwitchCountry: (country: ActiveCountry) => void;
+  indiaReturns: Record<number, IndianTaxReturn>;
 }
 
 interface ReceiptProps extends CommonProps {
@@ -64,7 +74,12 @@ interface LoadingProps extends CommonProps {
   pendingUpload: PendingUpload;
 }
 
-type Props = ReceiptProps | SummaryProps | LoadingProps;
+interface IndiaProps extends CommonProps {
+  view: "india";
+  financialYear: number;
+}
+
+type Props = ReceiptProps | SummaryProps | LoadingProps | IndiaProps;
 
 type SummaryViewMode = "table" | "receipt" | "charts";
 type YearViewMode = "receipt" | "charts";
@@ -157,6 +172,8 @@ function AnimatedTab({ id, label, isSelected, wrapper }: AnimatedTabProps) {
 export function MainPanel(props: Props) {
   const [summaryViewMode, setSummaryViewMode] = useState<SummaryViewMode>("table");
   const [yearViewMode, setYearViewMode] = useState<YearViewMode>("receipt");
+  const [indiaSummaryViewMode, setIndiaSummaryViewMode] = useState<"table" | "charts">("table");
+  const [indiaYearViewMode, setIndiaYearViewMode] = useState<"receipt" | "charts">("receipt");
   const [visibleCount, setVisibleCount] = useState(props.navItems.length);
   const navRef = useRef<HTMLElement>(null);
 
@@ -268,6 +285,12 @@ export function MainPanel(props: Props) {
               <FilePlusIcon />
               Get started
             </MenuItem>
+            {!props.isDemo && props.hasStoredKey && props.onUploadIndia && (
+              <MenuItem onClick={props.onUploadIndia}>
+                <FilePlusIcon />
+                Import India ITR
+              </MenuItem>
+            )}
             {!props.isDemo && (props.hasUserData || props.hasStoredKey) && (
               <MenuItem onClick={props.onOpenReset}>
                 <TrashIcon />
@@ -394,6 +417,33 @@ export function MainPanel(props: Props) {
             </nav>
           </Tabs.Root>
         </div>
+        {/* Country toggle — only shown when India data exists */}
+        {props.hasIndiaData && (
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-(--color-bg-muted) p-0.5">
+            <button
+              onClick={() => props.onSwitchCountry("us")}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                props.activeCountry === "us"
+                  ? "bg-(--color-bg) text-(--color-text) shadow-sm"
+                  : "text-(--color-text-muted) hover:text-(--color-text)",
+              )}
+            >
+              🇺🇸 US
+            </button>
+            <button
+              onClick={() => props.onSwitchCountry("india")}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                props.activeCountry === "india"
+                  ? "bg-(--color-bg) text-(--color-text) shadow-sm"
+                  : "text-(--color-text-muted) hover:text-(--color-text)",
+              )}
+            >
+              🇮🇳 India
+            </button>
+          </div>
+        )}
         {props.showChatButton !== false && !props.isChatOpen && (
           <Button
             variant="ghost"
@@ -414,6 +464,62 @@ export function MainPanel(props: Props) {
           year={props.pendingUpload.year}
           status={props.pendingUpload.status}
         />
+      ) : props.view === "india" ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center gap-1 border-b border-(--color-border) px-4 py-2">
+            {(["receipt", "charts"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setIndiaYearViewMode(mode)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  indiaYearViewMode === mode
+                    ? "bg-(--color-bg-muted) text-(--color-text)"
+                    : "text-(--color-text-muted) hover:text-(--color-text)",
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          {indiaYearViewMode === "charts" ? (
+            <div className="flex-1 overflow-y-auto bg-(--color-bg-subtle)">
+              <IndiaYearCharts data={props.indiaReturns[props.financialYear]!} />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-950">
+              <IndiaReceiptView data={props.indiaReturns[props.financialYear]!} />
+            </div>
+          )}
+        </div>
+      ) : props.view === "summary" && props.activeCountry === "india" ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center gap-1 border-b border-(--color-border) px-4 py-2">
+            {(["table", "charts"] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setIndiaSummaryViewMode(mode)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors",
+                  indiaSummaryViewMode === mode
+                    ? "bg-(--color-bg-muted) text-(--color-text)"
+                    : "text-(--color-text-muted) hover:text-(--color-text)",
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          {indiaSummaryViewMode === "charts" ? (
+            <div className="flex-1 overflow-y-auto bg-(--color-bg-subtle)">
+              <IndiaSummaryCharts returns={props.indiaReturns} />
+            </div>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <IndiaSummaryView returns={props.indiaReturns} />
+            </div>
+          )}
+        </div>
       ) : props.view === "summary" ? (
         <div className="flex min-h-0 flex-1 flex-col">
           <StatsHeader returns={props.returns} selectedYear="summary" />

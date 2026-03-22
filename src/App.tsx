@@ -14,11 +14,18 @@ import { UploadModal } from "./components/UploadModal";
 import { sampleReturns } from "./data/sampleData";
 import { isElectron } from "./lib/electron";
 import { getDevDemoOverride, isHostedEnvironment, resolveDemoMode } from "./lib/env";
-import type { FileProgress, FileWithId, PendingUpload, TaxReturn } from "./lib/schema";
+import type {
+  FileProgress,
+  FileWithId,
+  IndianTaxReturn,
+  PendingUpload,
+  TaxReturn,
+} from "./lib/schema";
 import type { NavItem } from "./lib/types";
 import { extractYearFromFilename } from "./lib/year-extractor";
 
 export type UpdateStatus = "available" | "downloading" | "ready";
+export type ActiveCountry = "us" | "india";
 
 function useElectronUpdater(devOverride: UpdateStatus | null) {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
@@ -109,8 +116,10 @@ type SelectedView = "summary" | number | `pending:${string}`;
 
 interface AppState {
   returns: Record<number, TaxReturn>;
+  indiaReturns: Record<number, IndianTaxReturn>;
   hasStoredKey: boolean;
   selectedYear: SelectedView;
+  activeCountry: ActiveCountry;
   isLoading: boolean;
   hasUserData: boolean;
   isDemo: boolean;
@@ -118,33 +127,39 @@ interface AppState {
 }
 
 async function fetchInitialState(): Promise<
-  Pick<AppState, "returns" | "hasStoredKey" | "hasUserData" | "isDemo" | "isDev">
+  Pick<AppState, "returns" | "indiaReturns" | "hasStoredKey" | "hasUserData" | "isDemo" | "isDev">
 > {
-  // In production (static hosting), skip API calls and use sample data
   if (isHostedEnvironment()) {
     return {
       hasStoredKey: false,
       returns: {},
+      indiaReturns: {},
       hasUserData: false,
       isDemo: true,
       isDev: false,
     };
   }
 
-  const [configRes, returnsRes] = await Promise.all([fetch("/api/config"), fetch("/api/returns")]);
+  const [configRes, returnsRes, indiaRes] = await Promise.all([
+    fetch("/api/config"),
+    fetch("/api/returns"),
+    fetch("/api/india/returns"),
+  ]);
   const { hasKey, isDemo, isDev } = await configRes.json();
   const returns = await returnsRes.json();
+  const indiaReturns = await indiaRes.json();
   const hasUserData = Object.keys(returns).length > 0;
   return {
     hasStoredKey: hasKey,
     returns,
+    indiaReturns,
     hasUserData,
     isDemo: isDemo ?? false,
     isDev: isDev ?? false,
   };
 }
 
-function getDefaultSelection(returns: Record<number, TaxReturn>): SelectedView {
+function getDefaultUsSelection(returns: Record<number, TaxReturn>): SelectedView {
   const years = Object.keys(returns)
     .map(Number)
     .sort((a, b) => a - b);
@@ -153,13 +168,38 @@ function getDefaultSelection(returns: Record<number, TaxReturn>): SelectedView {
   return "summary";
 }
 
-function buildNavItems(returns: Record<number, TaxReturn>): NavItem[] {
+function getDefaultIndiaSelection(indiaReturns: Record<number, IndianTaxReturn>): SelectedView {
+  const years = Object.keys(indiaReturns)
+    .map(Number)
+    .sort((a, b) => a - b);
+  if (years.length === 0) return "summary";
+  if (years.length === 1) return years[0] ?? "summary";
+  return "summary";
+}
+
+function buildUsNavItems(returns: Record<number, TaxReturn>): NavItem[] {
   const years = Object.keys(returns)
     .map(Number)
     .sort((a, b) => b - a);
   const items: NavItem[] = [];
   if (years.length > 1) items.push({ id: "summary", label: "All time" });
   items.push(...years.map((y) => ({ id: String(y), label: String(y) })));
+  return items;
+}
+
+function buildIndiaNavItems(indiaReturns: Record<number, IndianTaxReturn>): NavItem[] {
+  const years = Object.keys(indiaReturns)
+    .map(Number)
+    .sort((a, b) => b - a);
+  const items: NavItem[] = [];
+  if (years.length > 1) items.push({ id: "summary", label: "All years" });
+  // Label: FY 2024-25 (start year - end year, 2-digit end)
+  items.push(
+    ...years.map((fy) => ({
+      id: String(fy),
+      label: `FY ${fy}-${String(fy + 1).slice(-2)}`,
+    })),
+  );
   return items;
 }
 
@@ -172,8 +212,10 @@ function parseSelectedId(id: string): SelectedView {
 export function App() {
   const [state, setState] = useState<AppState>({
     returns: sampleReturns,
+    indiaReturns: {},
     hasStoredKey: false,
     selectedYear: "summary",
+    activeCountry: "us",
     isLoading: true,
     hasUserData: false,
     isDemo: isHostedEnvironment(),
@@ -187,10 +229,7 @@ export function App() {
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(() => {
     const stored = localStorage.getItem(CHAT_OPEN_KEY);
-    if (stored !== null) {
-      return stored === "true";
-    }
-    // Default: closed on mobile, open on desktop
+    if (stored !== null) return stored === "true";
     return typeof window !== "undefined" && window.innerWidth >= 768;
   });
   const [openModal, setOpenModal] = useState<"settings" | "reset" | "onboarding" | null>(null);
@@ -209,28 +248,32 @@ export function App() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const hasShownOnboardingRef = useRef(false);
+  const indiaUploadRef = useRef<HTMLInputElement>(null);
   const [devUpdateOverride, setDevUpdateOverride] = useState<UpdateStatus | null>(null);
   const updater = useElectronUpdater(devUpdateOverride);
 
-  // Compute effective demo mode early (dev override takes precedence)
   const effectiveIsDemo = resolveDemoMode(devDemoOverride, state.isDemo);
-
-  // Hide chat on mobile in demo mode
   const shouldShowChat = !effectiveIsDemo || !isMobile;
-
-  // When demo mode is toggled on, show sample data instead of user data
   const effectiveReturns = effectiveIsDemo ? sampleReturns : state.returns;
-  const navItems = buildNavItems(effectiveReturns);
+  const effectiveIndiaReturns = effectiveIsDemo ? {} : state.indiaReturns;
+
+  const hasIndiaData = Object.keys(effectiveIndiaReturns).length > 0;
+
+  const navItems =
+    state.activeCountry === "india"
+      ? buildIndiaNavItems(effectiveIndiaReturns)
+      : buildUsNavItems(effectiveReturns);
 
   useEffect(() => {
     fetchInitialState()
-      .then(({ returns, hasStoredKey, hasUserData, isDemo, isDev }) => {
-        // Use user data if available, otherwise show sample data
+      .then(({ returns, indiaReturns, hasStoredKey, hasUserData, isDemo, isDev }) => {
         const effectiveReturns = hasUserData ? returns : sampleReturns;
         setState({
           returns: effectiveReturns,
+          indiaReturns,
           hasStoredKey,
-          selectedYear: getDefaultSelection(effectiveReturns),
+          selectedYear: getDefaultUsSelection(effectiveReturns),
+          activeCountry: "us",
           isLoading: false,
           hasUserData,
           isDemo,
@@ -247,7 +290,6 @@ export function App() {
     document.documentElement.classList.toggle("dark", isDark);
   }, [isDark]);
 
-  // Listen for system theme changes
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e: MediaQueryListEvent) => setIsDark(e.matches);
@@ -270,7 +312,6 @@ export function App() {
     saveChatMessages(chatMessages);
   }, [chatMessages]);
 
-  // Auto-submit pending message when chat is ready
   useEffect(() => {
     if (pendingAutoMessage && isChatOpen && !isChatLoading) {
       submitChatMessage(pendingAutoMessage);
@@ -280,30 +321,18 @@ export function App() {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const currentId = state.selectedYear === "summary" ? "summary" : String(state.selectedYear);
       const selectedIndex = navItems.findIndex((item) => item.id === currentId);
 
       if (e.key === "j" && selectedIndex < navItems.length - 1) {
         const nextItem = navItems[selectedIndex + 1];
-        if (nextItem) {
-          setState((s) => ({
-            ...s,
-            selectedYear: parseSelectedId(nextItem.id),
-          }));
-        }
+        if (nextItem) setState((s) => ({ ...s, selectedYear: parseSelectedId(nextItem.id) }));
       }
       if (e.key === "k" && selectedIndex > 0) {
         const prevItem = navItems[selectedIndex - 1];
-        if (prevItem) {
-          setState((s) => ({
-            ...s,
-            selectedYear: parseSelectedId(prevItem.id),
-          }));
-        }
+        if (prevItem) setState((s) => ({ ...s, selectedYear: parseSelectedId(prevItem.id) }));
       }
     },
     [state.selectedYear, navItems],
@@ -334,7 +363,6 @@ export function App() {
       returns,
       hasStoredKey: true,
       hasUserData: true,
-      // Stay on summary if already there, otherwise navigate to new year
       selectedYear: s.selectedYear === "summary" ? "summary" : taxReturn.year,
     }));
 
@@ -344,14 +372,12 @@ export function App() {
   async function handleUploadFromSidebar(files: File[]) {
     if (files.length === 0) return;
 
-    // If no API key, open modal with all files
     if (!state.hasStoredKey) {
       setPendingFiles(files);
       setIsModalOpen(true);
       return;
     }
 
-    // Create pending uploads immediately (optimistic) for all files
     const newPendingUploads: PendingUpload[] = files.map((file) => {
       const filenameYear = extractYearFromFilename(file.name);
       return {
@@ -365,13 +391,11 @@ export function App() {
 
     setPendingUploads((prev) => [...prev, ...newPendingUploads]);
 
-    // Select the first pending upload
     const firstPending = newPendingUploads[0];
     if (firstPending) {
       setState((s) => ({ ...s, selectedYear: `pending:${firstPending.id}` }));
     }
 
-    // Extract years in parallel for files that don't have one from filename
     await Promise.all(
       newPendingUploads
         .filter((p) => !p.year)
@@ -379,10 +403,7 @@ export function App() {
           try {
             const formData = new FormData();
             formData.append("pdf", pending.file);
-            const yearRes = await fetch("/api/extract-year", {
-              method: "POST",
-              body: formData,
-            });
+            const yearRes = await fetch("/api/extract-year", { method: "POST", body: formData });
             const { year: extractedYear } = await yearRes.json();
             setPendingUploads((prev) =>
               prev.map((p) =>
@@ -398,30 +419,22 @@ export function App() {
         }),
     );
 
-    // Process files sequentially (full parsing)
     setIsUploading(true);
     let successfulUploads = 0;
     for (const pending of newPendingUploads) {
       try {
         await processUpload(pending.file, "");
         successfulUploads++;
-        // Remove from pending uploads after success
         setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
       } catch (err) {
         console.error("Upload failed:", err);
-        // Remove from pending uploads on error, but continue processing others
         setPendingUploads((prev) => prev.filter((p) => p.id !== pending.id));
       }
     }
     setIsUploading(false);
 
-    // Navigate to appropriate view after all uploads complete
-    setState((s) => ({
-      ...s,
-      selectedYear: getDefaultSelection(s.returns),
-    }));
+    setState((s) => ({ ...s, selectedYear: getDefaultUsSelection(s.returns) }));
 
-    // Auto-trigger chat after successful upload
     if (successfulUploads > 0) {
       const autoMessage =
         files.length === 1
@@ -433,9 +446,7 @@ export function App() {
   }
 
   async function handleUploadFromModal(files: File[], apiKey: string) {
-    for (const file of files) {
-      await processUpload(file, apiKey);
-    }
+    for (const file of files) await processUpload(file, apiKey);
     setPendingFiles([]);
   }
 
@@ -452,35 +463,79 @@ export function App() {
     setState((s) => ({ ...s, hasStoredKey: true }));
   }
 
+  async function handleUploadIndiaItr(file: File) {
+    if (!state.hasStoredKey) return;
+    const formData = new FormData();
+    formData.append("pdf", file);
+    const res = await fetch("/api/india/parse", { method: "POST", body: formData });
+    if (!res.ok) {
+      const { error } = await res.json();
+      throw new Error(error || `HTTP ${res.status}`);
+    }
+    const indiaReturn: IndianTaxReturn = await res.json();
+    const indiaRes = await fetch("/api/india/returns");
+    const indiaReturns = await indiaRes.json();
+    setState((s) => ({
+      ...s,
+      indiaReturns,
+      activeCountry: "india",
+      selectedYear: indiaReturn.financialYear,
+    }));
+  }
+
+  async function handleDeleteIndiaReturn(financialYear: number) {
+    await fetch(`/api/india/returns/${financialYear}`, { method: "DELETE" });
+    setState((s) => {
+      const newIndia = { ...s.indiaReturns };
+      delete newIndia[financialYear];
+      const hasAnyIndia = Object.keys(newIndia).length > 0;
+      return {
+        ...s,
+        indiaReturns: newIndia,
+        // Switch back to US if no India returns remain
+        activeCountry: hasAnyIndia ? s.activeCountry : "us",
+        selectedYear: hasAnyIndia
+          ? getDefaultIndiaSelection(newIndia)
+          : getDefaultUsSelection(s.returns),
+      };
+    });
+  }
+
+  function handleSwitchCountry(country: ActiveCountry) {
+    const newSelection =
+      country === "us"
+        ? getDefaultUsSelection(effectiveReturns)
+        : getDefaultIndiaSelection(effectiveIndiaReturns);
+    setState((s) => ({ ...s, activeCountry: country, selectedYear: newSelection }));
+  }
+
   async function handleClearData() {
     const res = await fetch("/api/clear-data", { method: "POST" });
     if (!res.ok) {
       const { error } = await res.json();
       throw new Error(error || `HTTP ${res.status}`);
     }
-    // Reset to initial state with sample data
     setState((s) => ({
       returns: sampleReturns,
+      indiaReturns: {},
       hasStoredKey: false,
       selectedYear: "summary",
+      activeCountry: "us",
       isLoading: false,
       hasUserData: false,
       isDemo: s.isDemo,
       isDev: s.isDev,
     }));
-    // Clear chat data
     localStorage.removeItem(CHAT_OPEN_KEY);
     localStorage.removeItem(CHAT_HISTORY_KEY);
     localStorage.removeItem("tax-chat-width");
     setChatMessages([]);
-    // Reset chat to open (default for new users)
     setIsChatOpen(true);
   }
 
   async function submitChatMessage(prompt: string) {
     if (!prompt || isChatLoading) return;
 
-    // Clear follow-up suggestions when sending a new message
     setFollowUpSuggestions([]);
 
     const userMessage: ChatMessage = {
@@ -492,7 +547,6 @@ export function App() {
     setChatMessages((prev) => [...prev, userMessage]);
     setIsChatLoading(true);
 
-    // In demo mode, return a hardcoded response
     if (effectiveIsDemo) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       const assistantMessage: ChatMessage = {
@@ -532,7 +586,6 @@ export function App() {
 
       setChatMessages((prev) => [...prev, assistantMessage]);
 
-      // Fetch follow-up suggestions (non-blocking)
       setIsLoadingSuggestions(true);
       fetch("/api/suggestions", {
         method: "POST",
@@ -566,19 +619,21 @@ export function App() {
   }
 
   function handleSelect(id: string) {
-    setState((s) => ({
-      ...s,
-      selectedYear: parseSelectedId(id),
-    }));
+    setState((s) => ({ ...s, selectedYear: parseSelectedId(id) }));
   }
 
   async function handleDelete(id: string) {
+    if (state.activeCountry === "india") {
+      const fy = Number(id);
+      if (!isNaN(fy)) await handleDeleteIndiaReturn(fy);
+      return;
+    }
+
     const year = Number(id);
     if (isNaN(year)) return;
 
     await fetch(`/api/returns/${year}`, { method: "DELETE" });
 
-    // Check if this is the last year before updating state
     const isLastYear = Object.keys(state.returns).length === 1;
 
     setState((s) => {
@@ -586,28 +641,15 @@ export function App() {
       delete newReturns[year];
 
       if (isLastYear) {
-        // Last year deleted - reset to sample data state
-        return {
-          ...s,
-          returns: sampleReturns,
-          selectedYear: "summary",
-          hasUserData: false,
-        };
+        return { ...s, returns: sampleReturns, selectedYear: "summary", hasUserData: false };
       }
 
       const newSelection =
-        s.selectedYear === year ? getDefaultSelection(newReturns) : s.selectedYear;
-      return {
-        ...s,
-        returns: newReturns,
-        selectedYear: newSelection,
-      };
+        s.selectedYear === year ? getDefaultUsSelection(newReturns) : s.selectedYear;
+      return { ...s, returns: newReturns, selectedYear: newSelection };
     });
 
-    // Re-open onboarding if we just deleted the last year
-    if (isLastYear) {
-      setOpenModal("onboarding");
-    }
+    if (isLastYear) setOpenModal("onboarding");
   }
 
   if (state.isLoading) {
@@ -618,24 +660,15 @@ export function App() {
     );
   }
 
-  function getSelectedId(): string {
-    if (typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")) {
-      return state.selectedYear;
-    }
-    if (state.selectedYear === "summary") return "summary";
-    return String(state.selectedYear);
-  }
-  const selectedId = getSelectedId();
+  const selectedId =
+    typeof state.selectedYear === "string" ? state.selectedYear : String(state.selectedYear);
 
-  function getReceiptData(): TaxReturn | null {
-    if (typeof state.selectedYear === "number") {
-      return effectiveReturns[state.selectedYear] || null;
-    }
-    return null;
-  }
+  const selectedPendingUpload =
+    typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")
+      ? pendingUploads.find((p) => `pending:${p.id}` === state.selectedYear)
+      : null;
 
   function renderMainPanel() {
-    // Calculate selectedYear for StatsHeader (always "summary" or a number)
     const statsSelectedYear: "summary" | number =
       typeof state.selectedYear === "number" ? state.selectedYear : "summary";
 
@@ -650,11 +683,17 @@ export function App() {
       onOpenStart: () => setOpenModal("onboarding"),
       onOpenReset: () => setOpenModal("reset"),
       onDeleteYear: handleDelete,
+      onUploadIndia: () => indiaUploadRef.current?.click(),
       isDemo: effectiveIsDemo,
       hasUserData: state.hasUserData,
       hasStoredKey: state.hasStoredKey,
       returns: effectiveReturns,
       selectedYear: statsSelectedYear,
+      // Country props
+      activeCountry: state.activeCountry,
+      hasIndiaData,
+      onSwitchCountry: handleSwitchCountry,
+      indiaReturns: effectiveIndiaReturns,
     };
 
     if (selectedPendingUpload) {
@@ -663,35 +702,30 @@ export function App() {
     if (state.selectedYear === "summary") {
       return <MainPanel view="summary" {...commonProps} />;
     }
-    const receiptData = getReceiptData();
-    if (receiptData) {
-      return (
-        <MainPanel
-          view="receipt"
-          data={receiptData}
-          title={String(state.selectedYear)}
-          {...commonProps}
-        />
-      );
+    if (typeof state.selectedYear === "number") {
+      if (state.activeCountry === "india") {
+        return <MainPanel view="india" financialYear={state.selectedYear} {...commonProps} />;
+      }
+      const receiptData = effectiveReturns[state.selectedYear];
+      if (receiptData) {
+        return (
+          <MainPanel
+            view="receipt"
+            data={receiptData}
+            title={String(state.selectedYear)}
+            {...commonProps}
+          />
+        );
+      }
     }
     return <MainPanel view="summary" {...commonProps} />;
   }
 
-  // Find pending upload if selected
-  const selectedPendingUpload =
-    typeof state.selectedYear === "string" && state.selectedYear.startsWith("pending:")
-      ? pendingUploads.find((p) => `pending:${p.id}` === state.selectedYear)
-      : null;
-
-  // Show onboarding dialog for new users (unless dismissed) or when manually opened
-  // Processing takes precedence - keep dialog open while processing
-  // In demo mode, don't auto-show - let users browse sample data first
   const showOnboarding =
     isOnboardingProcessing ||
     openModal === "onboarding" ||
     (!effectiveIsDemo && !onboardingDismissed && !state.hasStoredKey && !state.hasUserData);
 
-  // Skip open animation only on first automatic show (not manual reopen)
   const skipOnboardingAnimation =
     showOnboarding && !hasShownOnboardingRef.current && openModal !== "onboarding";
   if (showOnboarding && !hasShownOnboardingRef.current) {
@@ -703,16 +737,15 @@ export function App() {
     uploadedYears: number[],
     batchSize: number,
   ): SelectedView {
-    if (uploadedYears.length === 0) return "summary"; // all failed
-    if (batchSize === 1) return uploadedYears[0]!; // single file -> that year
-    return "summary"; // multiple files -> summary
+    if (uploadedYears.length === 0) return "summary";
+    if (batchSize === 1) return uploadedYears[0]!;
+    return "summary";
   }
 
   async function handleOnboardingUpload(files: FileWithId[], apiKey: string) {
     setIsOnboardingProcessing(true);
     const existingYears = Object.keys(state.returns).map(Number);
 
-    // Initialize progress using the same IDs from SetupDialog
     const progress: FileProgress[] = files.map((f) => ({
       id: f.id,
       filename: f.file.name,
@@ -720,12 +753,8 @@ export function App() {
     }));
     setOnboardingProgress(progress);
 
-    // Save API key if needed
-    if (!state.hasStoredKey && apiKey) {
-      await handleSaveApiKey(apiKey);
-    }
+    if (!state.hasStoredKey && apiKey) await handleSaveApiKey(apiKey);
 
-    // Process files with progress updates
     const uploadedYears: number[] = [];
     for (let i = 0; i < files.length; i++) {
       const fileWithId = files[i]!;
@@ -744,18 +773,13 @@ export function App() {
         setOnboardingProgress((p) =>
           p.map((f) =>
             f.id === id
-              ? {
-                  ...f,
-                  status: "error",
-                  error: err instanceof Error ? err.message : "Failed",
-                }
+              ? { ...f, status: "error", error: err instanceof Error ? err.message : "Failed" }
               : f,
           ),
         );
       }
     }
 
-    // Smart routing
     const nav = getPostUploadNavigation(existingYears, uploadedYears, files.length);
     setState((s) => ({ ...s, selectedYear: nav }));
 
@@ -763,7 +787,6 @@ export function App() {
     setOpenModal(null);
     setOnboardingProgress([]);
 
-    // Auto-trigger chat after successful upload
     if (uploadedYears.length > 0) {
       const autoMessage =
         files.length === 1
@@ -779,13 +802,23 @@ export function App() {
     setOnboardingDismissed(true);
   }
 
-  // Dev helper: throws during render to test ErrorBoundary
-  if (devTriggerError) {
-    throw new Error("Test error triggered from dev tools");
-  }
+  if (devTriggerError) throw new Error("Test error triggered from dev tools");
 
   return (
     <div className="flex h-screen">
+      <input
+        ref={indiaUploadRef}
+        type="file"
+        accept=".pdf"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            await handleUploadIndiaItr(file);
+            e.target.value = "";
+          }
+        }}
+      />
       <ErrorBoundary name="Main Panel">{renderMainPanel()}</ErrorBoundary>
 
       {shouldShowChat && isChatOpen && (
@@ -851,7 +884,6 @@ export function App() {
         onReset={handleClearData}
       />
 
-      {/* Demo island - show in demo mode when dialog is closed */}
       {effectiveIsDemo && !showOnboarding && (
         <>
           <div className="pointer-events-none fixed inset-x-0 bottom-0 z-90 h-96 bg-linear-to-t from-white to-transparent md:h-128 dark:from-black" />
