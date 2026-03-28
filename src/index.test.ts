@@ -7,6 +7,8 @@ import path from "path";
 
 const indexSrc = readFileSync(path.join(import.meta.dir, "index.ts"), "utf-8");
 
+// These are source-level checks, not HTTP tests. They verify config decisions that caused
+// production bugs and are easy to accidentally revert in future refactors.
 describe("server configuration regressions", () => {
   // Bug: Bun's default idleTimeout is 10s. Claude API calls take 30–90s.
   // The forecast POST was dropping the connection mid-call with "empty reply from server".

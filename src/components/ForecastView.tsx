@@ -85,10 +85,15 @@ export function ForecastView({ returns, onToggleChat }: Props) {
           const data = (await res.json()) as ForecastResponse;
           setState({ status: "loaded", data });
         } else {
-          setState({ status: "error", message: "Failed to load forecast" });
+          setState({ status: "error", message: `Failed to load forecast (HTTP ${res.status})` });
         }
       })
-      .catch(() => setState({ status: "empty" }));
+      .catch((err) => {
+        // Don't silently show empty — the cache may exist but the server was briefly unreachable.
+        // Showing the error lets the user retry rather than accidentally regenerating.
+        const message = err instanceof Error ? err.message : "Could not reach server";
+        setState({ status: "error", message });
+      });
   }, []);
 
   async function generate(regenerate = false) {
