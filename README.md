@@ -8,22 +8,6 @@ Forked from [brianlovin/tax-ui](https://github.com/brianlovin/tax-ui).
 
 ---
 
-## Screenshots
-
-![Multi-year summary view](docs/screenshots/summary.png)
-
-![Per-year receipt breakdown](docs/screenshots/by-year-receipt.png)
-
-![Tax bracket visualizer](docs/screenshots/bracket-visualizer.png)
-
-![What-if simulator with sliders engaged](docs/screenshots/what-if-simulator.png)
-
-![AI forecast view](docs/screenshots/forecast.png)
-
-![Retroactive insights panel](docs/screenshots/insights-panel.png)
-
----
-
 ## Features
 
 - **US returns (1040)** — parse PDFs into structured data: income, deductions, brackets, refund/owed, effective rate
@@ -95,15 +79,21 @@ The default landing view. Shows:
 
 Switch between US and India with the toggle at the top of the sidebar.
 
+![Summary view](docs/screenshots/summary.png)
+
 ---
 
 ### By Year view
 
 Select any year from the sidebar. Toggle between **Receipt** (detailed line-item breakdown) and **Charts** tabs.
 
+![Per-year receipt breakdown](docs/screenshots/by-year-receipt.png)
+
 **Charts tab** shows three tools:
 
 1. **Federal Tax Bracket Visualizer** — a color-coded stacked bar (green 10% → red 37%) showing exactly where taxable income lands. Each bracket shows income in the band and the tax it generated. The marginal bracket is highlighted with a "you are here" label; headroom to the next bracket is shown in gray. If the bracket-computed tax differs from the filed amount by >$500, a note explains why (AMT, QBI deduction, etc.).
+
+   ![Tax bracket visualizer](docs/screenshots/bracket-visualizer.png)
 
 2. **What-if Simulator** — four sliders let you adjust:
    - 401(k) top-up (0 to year's employee limit)
@@ -113,11 +103,15 @@ Select any year from the sidebar. Toggle between **Receipt** (detailed line-item
 
    The bracket bar updates live as you move sliders — a white marker line shows where your original income was. The simulator shows before→after taxable income and bracket tax, with a green savings callout. Resets automatically when you navigate to a different year.
 
+   ![What-if simulator with sliders engaged](docs/screenshots/what-if-simulator.png)
+
 3. **Income breakdown** and **waterfall charts** (existing).
 
 **Retroactive Insights** appear below the receipt on the Receipt tab. Click **Generate →** to ask Claude what you could have done differently to reduce your tax bill for that year — bracket optimization, capital gains harvesting, deduction opportunities, India old vs. new regime comparison. Results are cached; click **⟳ Regenerate** to refresh.
 
 A badge shows whether verified constants are on file for that year (green ✓ US + India) or whether Claude is using its training data (amber ⚠).
+
+![Retroactive insights panel](docs/screenshots/insights-panel.png)
 
 ---
 
@@ -137,6 +131,8 @@ Click **Forecast** in the sidebar Views section. Click **Generate Forecast →**
 Generation runs in the background — you can navigate to other views while Claude works and return to see the result. Click **⟳ Regenerate** to refresh. Results are cached across page loads and server restarts.
 
 The header shows amber ⚠ badges only for years where IRS constants are not on file (nothing shown when all years are verified).
+
+![AI forecast view](docs/screenshots/forecast.png)
 
 ---
 
