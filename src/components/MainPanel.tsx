@@ -8,6 +8,7 @@ import { IndiaReceiptView } from "./IndiaReceiptView";
 import { IndiaSummaryCharts } from "./IndiaSummaryCharts";
 import { IndiaSummaryView } from "./IndiaSummaryView";
 import { IndiaYearCharts } from "./IndiaYearCharts";
+import { InsightsPanel } from "./InsightsPanel";
 import { LoadingView } from "./LoadingView";
 import { ReceiptView } from "./ReceiptView";
 import { StatsHeader } from "./StatsHeader";
@@ -183,6 +184,7 @@ export function MainPanel(props: Props) {
           ) : (
             <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-950">
               <ReceiptView data={props.data} />
+              <InsightsPanel year={props.selectedYear as number} />
             </div>
           )}
         </div>

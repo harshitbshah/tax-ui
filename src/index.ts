@@ -13,6 +13,8 @@ import {
   getIndiaReturns,
   saveIndiaReturn,
 } from "./lib/india-storage";
+import { generateInsights } from "./lib/insights";
+import { clearInsightsCache, getInsightsCache, saveInsightsCache } from "./lib/insights-cache";
 import { extractYearFromPdf, parseTaxReturn } from "./lib/parser";
 import {
   clearAllData,
@@ -121,6 +123,7 @@ const routes: Record<string, any> = {
       await clearAllData();
       await clearIndiaData();
       await clearForecastCache();
+      await clearInsightsCache();
       return Response.json({ success: true });
     },
   },
@@ -339,6 +342,38 @@ const routes: Record<string, any> = {
         return Response.json({ error: message }, { status: 500 });
       }
     },
+  },
+  // Same single-function-handler pattern as /api/forecast to avoid /* SPA wildcard conflict.
+  "/api/insights/:year": async (req: Request & { params: { year: string } }) => {
+    const year = Number(req.params.year);
+    if (isNaN(year)) return Response.json({ error: "Invalid year" }, { status: 400 });
+
+    if (req.method === "GET") {
+      const cached = await getInsightsCache(year);
+      if (!cached) return new Response("Not found", { status: 404 });
+      return Response.json(cached);
+    }
+
+    if (req.method === "POST") {
+      const apiKey = getApiKey();
+      if (!apiKey) return Response.json({ error: "No API key configured" }, { status: 400 });
+
+      try {
+        const [usReturns, indiaReturns] = await Promise.all([getReturns(), getIndiaReturns()]);
+        if (!usReturns[year]) {
+          return Response.json({ error: `No return on file for year ${year}` }, { status: 404 });
+        }
+        const items = await generateInsights(year, usReturns, indiaReturns, apiKey);
+        await saveInsightsCache(year, items);
+        return Response.json(items);
+      } catch (error) {
+        console.error("Insights error:", error);
+        const message = error instanceof Error ? error.message : "Unknown error";
+        return Response.json({ error: message }, { status: 500 });
+      }
+    }
+
+    return new Response("Method Not Allowed", { status: 405 });
   },
   // Bun's wildcard "/*" conflicts with multi-method route objects, so branch on req.method.
   "/api/forecast": async (req: Request) => {
