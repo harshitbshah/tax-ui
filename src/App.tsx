@@ -10,10 +10,19 @@ import { MainPanel } from "./components/MainPanel";
 import { ResetDialog } from "./components/ResetDialog";
 import { SettingsModal } from "./components/SettingsModal";
 import { SetupDialog } from "./components/SetupDialog";
+import { Sidebar } from "./components/Sidebar";
 import { UploadModal } from "./components/UploadModal";
 import { sampleReturns } from "./data/sampleData";
 import { isElectron } from "./lib/electron";
 import { getDevDemoOverride, isHostedEnvironment, resolveDemoMode } from "./lib/env";
+import {
+  buildIndiaNavItems,
+  buildUsNavItems,
+  getDefaultIndiaSelection,
+  getDefaultUsSelection,
+  parseSelectedId,
+  type SelectedView,
+} from "./lib/nav";
 import type {
   FileProgress,
   FileWithId,
@@ -21,11 +30,12 @@ import type {
   PendingUpload,
   TaxReturn,
 } from "./lib/schema";
-import type { NavItem } from "./lib/types";
 import { extractYearFromFilename } from "./lib/year-extractor";
 
 export type UpdateStatus = "available" | "downloading" | "ready";
 export type ActiveCountry = "us" | "india";
+// SelectedView is re-exported from nav.ts for external use
+export type { SelectedView };
 
 function useElectronUpdater(devOverride: UpdateStatus | null) {
   const [status, setStatus] = useState<UpdateStatus | null>(null);
@@ -112,8 +122,6 @@ function saveChatMessages(messages: ChatMessage[]) {
   } catch {}
 }
 
-type SelectedView = "summary" | number | `pending:${string}`;
-
 interface AppState {
   returns: Record<number, TaxReturn>;
   indiaReturns: Record<number, IndianTaxReturn>;
@@ -157,56 +165,6 @@ async function fetchInitialState(): Promise<
     isDemo: isDemo ?? false,
     isDev: isDev ?? false,
   };
-}
-
-function getDefaultUsSelection(returns: Record<number, TaxReturn>): SelectedView {
-  const years = Object.keys(returns)
-    .map(Number)
-    .sort((a, b) => a - b);
-  if (years.length === 0) return "summary";
-  if (years.length === 1) return years[0] ?? "summary";
-  return "summary";
-}
-
-function getDefaultIndiaSelection(indiaReturns: Record<number, IndianTaxReturn>): SelectedView {
-  const years = Object.keys(indiaReturns)
-    .map(Number)
-    .sort((a, b) => a - b);
-  if (years.length === 0) return "summary";
-  if (years.length === 1) return years[0] ?? "summary";
-  return "summary";
-}
-
-function buildUsNavItems(returns: Record<number, TaxReturn>): NavItem[] {
-  const years = Object.keys(returns)
-    .map(Number)
-    .sort((a, b) => b - a);
-  const items: NavItem[] = [];
-  if (years.length > 1) items.push({ id: "summary", label: "All time" });
-  items.push(...years.map((y) => ({ id: String(y), label: String(y) })));
-  return items;
-}
-
-function buildIndiaNavItems(indiaReturns: Record<number, IndianTaxReturn>): NavItem[] {
-  const years = Object.keys(indiaReturns)
-    .map(Number)
-    .sort((a, b) => b - a);
-  const items: NavItem[] = [];
-  if (years.length > 1) items.push({ id: "summary", label: "All years" });
-  // Label: FY 2024-25 (start year - end year, 2-digit end)
-  items.push(
-    ...years.map((fy) => ({
-      id: String(fy),
-      label: `FY ${fy}-${String(fy + 1).slice(-2)}`,
-    })),
-  );
-  return items;
-}
-
-function parseSelectedId(id: string): SelectedView {
-  if (id === "summary") return "summary";
-  if (id.startsWith("pending:")) return id as `pending:${string}`;
-  return Number(id);
 }
 
 export function App() {
@@ -669,35 +627,25 @@ export function App() {
       : null;
 
   function renderMainPanel() {
-    const statsSelectedYear: "summary" | number =
-      typeof state.selectedYear === "number" ? state.selectedYear : "summary";
+    const statsSelectedYear: "summary" | "forecast" | number =
+      state.selectedYear === "forecast"
+        ? "forecast"
+        : typeof state.selectedYear === "number"
+          ? state.selectedYear
+          : "summary";
 
     const commonProps = {
-      isChatOpen,
-      isChatLoading,
-      onToggleChat: () => setIsChatOpen(!isChatOpen),
-      showChatButton: shouldShowChat,
-      navItems,
-      selectedId,
-      onSelect: handleSelect,
-      onOpenStart: () => setOpenModal("onboarding"),
-      onOpenReset: () => setOpenModal("reset"),
-      onDeleteYear: handleDelete,
-      onUploadIndia: () => indiaUploadRef.current?.click(),
-      isDemo: effectiveIsDemo,
-      hasUserData: state.hasUserData,
-      hasStoredKey: state.hasStoredKey,
       returns: effectiveReturns,
       selectedYear: statsSelectedYear,
-      // Country props
       activeCountry: state.activeCountry,
-      hasIndiaData,
-      onSwitchCountry: handleSwitchCountry,
       indiaReturns: effectiveIndiaReturns,
     };
 
     if (selectedPendingUpload) {
       return <MainPanel view="loading" pendingUpload={selectedPendingUpload} {...commonProps} />;
+    }
+    if (state.selectedYear === "forecast") {
+      return <MainPanel view="forecast" {...commonProps} />;
     }
     if (state.selectedYear === "summary") {
       return <MainPanel view="summary" {...commonProps} />;
@@ -818,6 +766,24 @@ export function App() {
             e.target.value = "";
           }
         }}
+      />
+      <Sidebar
+        navItems={navItems}
+        selectedId={selectedId}
+        activeCountry={state.activeCountry}
+        hasIndiaData={hasIndiaData}
+        onSelect={handleSelect}
+        onSwitchCountry={handleSwitchCountry}
+        onOpenStart={() => setOpenModal("onboarding")}
+        onOpenReset={() => setOpenModal("reset")}
+        onUploadIndia={() => indiaUploadRef.current?.click()}
+        onDeleteYear={handleDelete}
+        isDemo={effectiveIsDemo}
+        hasUserData={state.hasUserData}
+        hasStoredKey={state.hasStoredKey}
+        isChatOpen={isChatOpen}
+        isChatLoading={isChatLoading}
+        onToggleChat={() => setIsChatOpen(!isChatOpen)}
       />
       <ErrorBoundary name="Main Panel">{renderMainPanel()}</ErrorBoundary>
 

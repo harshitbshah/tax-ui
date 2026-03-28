@@ -14,6 +14,14 @@ Tax return PDF parser using Claude API and Bun.
 - `bun run dev` — Start dev server with HMR
 - `bun run build` — Production build
 
+## Docs
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — full system architecture, data flow, component map, model usage
+- [`docs/FORECAST_SPEC.md`](docs/FORECAST_SPEC.md) — AI forecast + insights feature spec (5 phases, test requirements per phase)
+- [`docs/FEATURES.md`](docs/FEATURES.md) — full feature backlog
+- [`docs/PROGRESS.md`](docs/PROGRESS.md) — session-by-session progress log
+- [`docs/HOSTING.md`](docs/HOSTING.md) — OCI hosting plan (deferred)
+
 ## Architecture
 
 ### US returns

@@ -1,61 +1,25 @@
-import { ContextMenu } from "@base-ui/react/context-menu";
-import { Tabs } from "@base-ui/react/tabs";
-import { LayoutGroup, motion } from "motion/react";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useState } from "react";
 
 import type { ActiveCountry } from "../App";
 import { cn } from "../lib/cn";
-import { isElectron } from "../lib/electron";
 import type { IndianTaxReturn, PendingUpload, TaxReturn } from "../lib/schema";
-import type { NavItem } from "../lib/types";
-import { BrailleSpinner } from "./BrailleSpinner";
-import { Button } from "./Button";
-import { FilePlusIcon } from "./FilePlusIcon";
+import { ForecastView } from "./ForecastView";
 import { IndiaReceiptView } from "./IndiaReceiptView";
 import { IndiaSummaryCharts } from "./IndiaSummaryCharts";
 import { IndiaSummaryView } from "./IndiaSummaryView";
 import { IndiaYearCharts } from "./IndiaYearCharts";
 import { LoadingView } from "./LoadingView";
-import { itemBaseClassName, Menu, MenuItem, popupBaseClassName } from "./Menu";
-import { PlusIcon } from "./PlusIcon";
 import { ReceiptView } from "./ReceiptView";
 import { StatsHeader } from "./StatsHeader";
 import { SummaryCharts } from "./SummaryCharts";
 import { SummaryReceiptView } from "./SummaryReceiptView";
 import { SummaryTable } from "./SummaryTable";
-import { TrashIcon } from "./TrashIcon";
 import { YearCharts } from "./YearCharts";
 
 interface CommonProps {
-  isChatOpen: boolean;
-  isChatLoading?: boolean;
-  onToggleChat: () => void;
-  showChatButton?: boolean;
-  navItems: NavItem[];
-  selectedId: string;
-  onSelect: (id: string) => void;
-  onOpenStart: () => void;
-  onOpenReset: () => void;
-  onDeleteYear?: (year: string) => void;
-  onUploadIndia?: () => void;
-  isDemo: boolean;
-  hasUserData: boolean;
-  hasStoredKey: boolean;
   returns: Record<number, TaxReturn>;
-  selectedYear: "summary" | number;
+  selectedYear: "summary" | "forecast" | number;
   activeCountry: ActiveCountry;
-  hasIndiaData: boolean;
-  onSwitchCountry: (country: ActiveCountry) => void;
   indiaReturns: Record<number, IndianTaxReturn>;
 }
 
@@ -69,6 +33,10 @@ interface SummaryProps extends CommonProps {
   view: "summary";
 }
 
+interface ForecastProps extends CommonProps {
+  view: "forecast";
+}
+
 interface LoadingProps extends CommonProps {
   view: "loading";
   pendingUpload: PendingUpload;
@@ -79,384 +47,19 @@ interface IndiaProps extends CommonProps {
   financialYear: number;
 }
 
-type Props = ReceiptProps | SummaryProps | LoadingProps | IndiaProps;
+type Props = ReceiptProps | SummaryProps | ForecastProps | LoadingProps | IndiaProps;
 
 type SummaryViewMode = "table" | "receipt" | "charts";
 type YearViewMode = "receipt" | "charts";
-
-const ITEM_WIDTH = 78; // 70px + 8px gap
-const OVERFLOW_BUTTON_WIDTH = 48; // 40px + gap
-const ADD_BUTTON_WIDTH = 48; // 40px + gap
-
-// Animated tab highlight context and helpers (same pattern as Menu)
-interface TabHighlightContextValue {
-  layoutId: string;
-  subscribe: (callback: () => void) => () => void;
-  getHoveredId: () => string | null;
-  setHovered: (id: string | null) => void;
-}
-
-const TabHighlightContext = createContext<TabHighlightContextValue | null>(null);
-
-function useTabHighlightStore() {
-  const hoveredRef = useRef<string | null>(null);
-  const listenersRef = useRef<Set<() => void>>(new Set());
-
-  const subscribe = useCallback((callback: () => void) => {
-    listenersRef.current.add(callback);
-    return () => listenersRef.current.delete(callback);
-  }, []);
-
-  const getHoveredId = useCallback(() => {
-    return hoveredRef.current;
-  }, []);
-
-  const setHovered = useCallback((id: string | null) => {
-    if (hoveredRef.current !== id) {
-      hoveredRef.current = id;
-      listenersRef.current.forEach((cb) => cb());
-    }
-  }, []);
-
-  return { subscribe, getHoveredId, setHovered };
-}
-
-interface AnimatedTabProps {
-  id: string;
-  label: string;
-  isSelected: boolean;
-  wrapper?: (tab: React.ReactElement) => React.ReactNode;
-}
-
-function AnimatedTab({ id, label, isSelected, wrapper }: AnimatedTabProps) {
-  const ctx = useContext(TabHighlightContext);
-
-  const hoveredId = useSyncExternalStore(
-    ctx?.subscribe ?? (() => () => {}),
-    ctx?.getHoveredId ?? (() => null),
-  );
-
-  const hasAnyHover = hoveredId !== null;
-  // Show highlight if hovered, or if selected and nothing is hovered
-  const showHighlight = hoveredId === id || (isSelected && !hasAnyHover);
-
-  const tab = (
-    <Tabs.Tab
-      value={id}
-      className={cn(
-        "relative shrink-0 cursor-pointer rounded-lg px-2.5 py-1 text-sm font-medium outline-none",
-        isSelected ? "text-(--color-text)" : "text-(--color-text-muted) hover:text-(--color-text)",
-      )}
-      onMouseEnter={() => ctx?.setHovered(id)}
-    >
-      {/* Animated highlight - follows hover or selection */}
-      {showHighlight && ctx && (
-        <motion.div
-          layoutId={ctx.layoutId}
-          className="dark:shadow-contrast absolute inset-0 rounded-lg bg-(--color-bg-muted)"
-          initial={false}
-          transition={{
-            type: "spring",
-            stiffness: 500,
-            damping: 35,
-          }}
-        />
-      )}
-      <span className="relative z-10">{label}</span>
-    </Tabs.Tab>
-  );
-
-  return wrapper ? wrapper(tab) : tab;
-}
 
 export function MainPanel(props: Props) {
   const [summaryViewMode, setSummaryViewMode] = useState<SummaryViewMode>("table");
   const [yearViewMode, setYearViewMode] = useState<YearViewMode>("receipt");
   const [indiaSummaryViewMode, setIndiaSummaryViewMode] = useState<"table" | "charts">("table");
   const [indiaYearViewMode, setIndiaYearViewMode] = useState<"receipt" | "charts">("receipt");
-  const [visibleCount, setVisibleCount] = useState(props.navItems.length);
-  const navRef = useRef<HTMLElement>(null);
-
-  // Animated tab highlight setup
-  const tabLayoutId = useId();
-  const tabHighlightStore = useTabHighlightStore();
-  const tabHighlightContextValue = useMemo(
-    () => ({
-      layoutId: tabLayoutId,
-      ...tabHighlightStore,
-    }),
-    [tabLayoutId, tabHighlightStore],
-  );
-
-  const calculateVisibleItems = useCallback(() => {
-    if (!navRef.current) return;
-    const availableWidth = navRef.current.offsetWidth;
-    const reservedWidth = OVERFLOW_BUTTON_WIDTH + ADD_BUTTON_WIDTH;
-    const maxItems = Math.floor((availableWidth - reservedWidth) / ITEM_WIDTH);
-    setVisibleCount(Math.max(1, Math.min(props.navItems.length, maxItems)));
-  }, [props.navItems.length]);
-
-  useEffect(() => {
-    calculateVisibleItems();
-    const observer = new ResizeObserver(calculateVisibleItems);
-    if (navRef.current) {
-      observer.observe(navRef.current);
-    }
-    return () => observer.disconnect();
-  }, [calculateVisibleItems]);
-
-  // Global arrow key handler for tab navigation
-  const tabListRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-
-      // Skip if focus is already in the tab list
-      if (tabListRef.current?.contains(document.activeElement)) return;
-
-      // Skip if focus is in an input, textarea, or contenteditable
-      const active = document.activeElement;
-      if (
-        active instanceof HTMLInputElement ||
-        active instanceof HTMLTextAreaElement ||
-        (active instanceof HTMLElement && active.isContentEditable)
-      ) {
-        return;
-      }
-
-      e.preventDefault();
-
-      const currentIndex = props.navItems.findIndex((item) => item.id === props.selectedId);
-      const direction = e.key === "ArrowLeft" ? -1 : 1;
-      const nextIndex = Math.max(0, Math.min(props.navItems.length - 1, currentIndex + direction));
-      const nextItem = props.navItems[nextIndex];
-
-      if (nextItem && nextItem.id !== props.selectedId) {
-        props.onSelect(nextItem.id);
-      }
-
-      // Focus the tab list so subsequent arrow keys work natively
-      const tabToFocus = tabListRef.current?.querySelector(
-        `[data-value="${nextItem?.id ?? props.selectedId}"]`,
-      ) as HTMLElement | null;
-      tabToFocus?.focus();
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [props.navItems, props.selectedId, props.onSelect]);
-
-  const visibleItems = props.navItems.slice(0, visibleCount);
-  const overflowItems = props.navItems.slice(visibleCount);
-  const hasOverflow = overflowItems.length > 0;
 
   return (
     <div className="flex h-screen flex-1 flex-col overflow-hidden bg-(--color-bg)">
-      {/* Header */}
-      <header
-        className={cn(
-          "flex h-12 shrink-0 items-center justify-between border-b border-(--color-border) pr-3 pl-[calc(0.75rem+var(--electron-traffic-left))] sm:pr-3 sm:pl-[calc(1.5rem+var(--electron-traffic-left))]",
-          isElectron() && "app-window-drag",
-        )}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {/* Hamburger Menu */}
-          <Menu
-            triggerClassName="-ml-1.5"
-            popupClassName="min-w-[180px]"
-            side="bottom"
-            align="start"
-            sideOffset={4}
-            trigger={
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <path d="M2 5.5h12M2 10.5h12" />
-              </svg>
-            }
-          >
-            <MenuItem onClick={props.onOpenStart}>
-              <FilePlusIcon />
-              Get started
-            </MenuItem>
-            {!props.isDemo && props.hasStoredKey && props.onUploadIndia && (
-              <MenuItem onClick={props.onUploadIndia}>
-                <FilePlusIcon />
-                Import India ITR
-              </MenuItem>
-            )}
-            {!props.isDemo && (props.hasUserData || props.hasStoredKey) && (
-              <MenuItem onClick={props.onOpenReset}>
-                <TrashIcon />
-                Reset data
-              </MenuItem>
-            )}
-
-            <MenuItem onClick={() => window.open("https://github.com/brianlovin/tax-ui", "_blank")}>
-              <div className="flex h-5 w-5 items-center justify-center">
-                <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor">
-                  <path
-                    fillRule="evenodd"
-                    clipRule="evenodd"
-                    d="M7.5 0C3.35 0 0 3.35 0 7.5c0 3.32 2.15 6.14 5.13 7.13.38.07.51-.16.51-.36 0-.18-.01-.65-.01-.65-2.09.45-2.53-1.01-2.53-1.01-.34-.87-.84-1.1-.84-1.1-.68-.46.05-.46.05-.46.76.05 1.16.78 1.16.78.67 1.15 1.77.82 2.2.62.07-.48.26-.82.47-1.01-1.67-.19-3.43-.84-3.43-3.72 0-.82.3-1.5.78-2.02-.08-.19-.34-.96.07-2 0 0 .64-.2 2.08.77a7.24 7.24 0 013.78 0c1.44-.98 2.08-.77 2.08-.77.42 1.04.15 1.81.07 2 .49.52.78 1.2.78 2.02 0 2.89-1.76 3.53-3.44 3.71.27.24.51.69.51 1.39 0 1.01-.01 1.82-.01 2.07 0 .2.14.44.52.36A7.51 7.51 0 0015 7.5C15 3.35 11.65 0 7.5 0z"
-                  />
-                </svg>
-              </div>
-              Contribute
-            </MenuItem>
-          </Menu>
-          <Tabs.Root
-            value={props.selectedId}
-            onValueChange={(val: string | number | null) => val && props.onSelect(String(val))}
-            className="min-w-0 flex-1"
-          >
-            <nav ref={navRef} className="flex min-w-0 flex-1 items-center gap-2">
-              <Tabs.List
-                ref={tabListRef}
-                className="flex min-w-0 items-center gap-2 overflow-hidden pr-1"
-                activateOnFocus
-                onMouseLeave={() => tabHighlightStore.setHovered(null)}
-              >
-                <LayoutGroup>
-                  <TabHighlightContext.Provider value={tabHighlightContextValue}>
-                    {visibleItems.map((item) => {
-                      const isYear = item.id !== "summary";
-                      const canDelete = isYear && !props.isDemo && props.onDeleteYear;
-
-                      return (
-                        <AnimatedTab
-                          key={item.id}
-                          id={item.id}
-                          label={item.label}
-                          isSelected={props.selectedId === item.id}
-                          wrapper={
-                            canDelete
-                              ? (tab) => (
-                                  <ContextMenu.Root>
-                                    <ContextMenu.Trigger render={tab} />
-                                    <ContextMenu.Portal>
-                                      <ContextMenu.Positioner className="z-50" sideOffset={4}>
-                                        <ContextMenu.Popup
-                                          className={cn(popupBaseClassName, "z-50")}
-                                        >
-                                          <ContextMenu.Item
-                                            className={cn(
-                                              itemBaseClassName,
-                                              "data-[highlighted]:bg-(--color-bg-muted)",
-                                            )}
-                                            onClick={() => props.onDeleteYear?.(item.id)}
-                                          >
-                                            <TrashIcon />
-                                            Remove {item.label} data
-                                          </ContextMenu.Item>
-                                        </ContextMenu.Popup>
-                                      </ContextMenu.Positioner>
-                                    </ContextMenu.Portal>
-                                  </ContextMenu.Root>
-                                )
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
-                  </TabHighlightContext.Provider>
-                </LayoutGroup>
-              </Tabs.List>
-
-              {/* Overflow items */}
-              {hasOverflow && (
-                <Menu
-                  triggerClassName="px-2.5 py-1 text-sm font-medium"
-                  popupClassName="min-w-25"
-                  side="bottom"
-                  align="start"
-                  sideOffset={4}
-                  trigger="···"
-                >
-                  {overflowItems.map((item) => (
-                    <MenuItem
-                      key={item.id}
-                      onClick={() => props.onSelect(item.id)}
-                      selected={props.selectedId === item.id}
-                    >
-                      {item.label}
-                    </MenuItem>
-                  ))}
-                </Menu>
-              )}
-
-              {/* Add button */}
-              {props.isDemo ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={props.onOpenStart}
-                  className="flex shrink-0 items-center gap-1 px-2.5 py-1"
-                >
-                  <PlusIcon size={14} strokeWidth={2.5} />
-                  Upload
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  iconOnly
-                  onClick={props.onOpenStart}
-                  title="Add tax returns"
-                  className="shrink-0"
-                >
-                  <PlusIcon />
-                </Button>
-              )}
-            </nav>
-          </Tabs.Root>
-        </div>
-        {/* Country toggle — only shown when India data exists */}
-        {props.hasIndiaData && (
-          <div className="flex shrink-0 items-center gap-0.5 rounded-lg bg-(--color-bg-muted) p-0.5">
-            <button
-              onClick={() => props.onSwitchCountry("us")}
-              className={cn(
-                "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                props.activeCountry === "us"
-                  ? "bg-(--color-bg) text-(--color-text) shadow-sm"
-                  : "text-(--color-text-muted) hover:text-(--color-text)",
-              )}
-            >
-              🇺🇸 US
-            </button>
-            <button
-              onClick={() => props.onSwitchCountry("india")}
-              className={cn(
-                "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                props.activeCountry === "india"
-                  ? "bg-(--color-bg) text-(--color-text) shadow-sm"
-                  : "text-(--color-text-muted) hover:text-(--color-text)",
-              )}
-            >
-              🇮🇳 India
-            </button>
-          </div>
-        )}
-        {props.showChatButton !== false && !props.isChatOpen && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={props.onToggleChat}
-            className="flex shrink-0 items-center gap-2"
-          >
-            Chat
-            {props.isChatLoading && <BrailleSpinner className="text-xs" />}
-          </Button>
-        )}
-      </header>
-
       {/* Content */}
       {props.view === "loading" ? (
         <LoadingView
@@ -582,6 +185,8 @@ export function MainPanel(props: Props) {
             </div>
           )}
         </div>
+      ) : props.view === "forecast" ? (
+        <ForecastView />
       ) : null}
     </div>
   );

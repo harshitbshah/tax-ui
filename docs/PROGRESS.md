@@ -4,6 +4,38 @@ One entry per checkpoint. Most recent first.
 
 ---
 
+## 2026-03-28
+
+**Done:**
+- **Phase 1: Sidebar layout refactor** — replaced top header + horizontal tab navigation with a left sidebar (192px)
+  - Logo + "beta" badge
+  - Country toggle (🇺🇸/🇮🇳) in sidebar, conditional on India data
+  - Views section: Summary, By Year, Forecast nav items
+  - Years section: all parsed years listed descending
+  - Footer: Chat toggle button + actions menu (add return, import ITR, reset data)
+- **`src/lib/nav.ts`** — extracted all nav functions from App.tsx into testable module; added `"forecast"` to `SelectedView` type; added `getMostRecentYearItem()`
+- **`src/lib/nav.test.ts`** — 24 new unit tests covering buildUsNavItems, buildIndiaNavItems, getDefaultUsSelection, getDefaultIndiaSelection, getMostRecentYearItem, parseSelectedId
+- **`src/components/Sidebar.tsx`** — new sidebar component
+- **`src/components/ForecastView.tsx`** — placeholder "coming soon" view for Phase 3
+- **`src/components/MainPanel.tsx`** — removed entire header (~200 lines), CommonProps slimmed from 20 fields to 4
+- **Documentation** — ARCHITECTURE.md, FORECAST_SPEC.md (with testing requirements per phase + model decision), README rewritten as TaxLens, CLAUDE.md updated with docs index
+
+**Decisions:**
+- `getMostRecentYearItem` used by "By Year" sidebar item: clicking it when on summary/forecast navigates to the most recent year; clicking when already on a year is a no-op
+- Forecast nav item shows placeholder until Phase 3 — wired end-to-end so the nav works now
+- All nav functions moved to `nav.ts` to make them unit-testable without React
+
+**Tests:** 96 pass (72 existing + 24 new nav tests)
+
+**Known gaps:**
+- j/k keyboard shortcuts still work for year navigation but don't cover Summary/Forecast views — acceptable for now
+- Delete year (right-click context menu) was on the old header tabs — removed for now, will add back in sidebar if needed
+- Mobile: sidebar doesn't collapse yet (out of scope for Phase 1)
+
+**Next:** Phase 2 — `POST /api/forecast` endpoint (Claude Sonnet call, ForecastResponse schema, structured output)
+
+---
+
 ## 2026-03-21
 
 **Done:**

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tax Forecast — Mockup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f0f0f; color: #e5e5e5; min-height: 100vh; }
+
+    /* Layout */
+    .shell { display: flex; height: 100vh; }
+    .sidebar { width: 220px; background: #161616; border-right: 1px solid #222; padding: 20px 0; flex-shrink: 0; }
+    .main { flex: 1; overflow-y: auto; padding: 32px; }
+
+    /* Sidebar */
+    .sidebar-logo { padding: 0 20px 24px; font-size: 15px; font-weight: 600; color: #fff; border-bottom: 1px solid #222; margin-bottom: 12px; }
+    .sidebar-logo span { color: #888; font-weight: 400; }
+    .nav-item { padding: 8px 20px; font-size: 13px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .nav-item:hover { color: #ccc; }
+    .nav-item.active { color: #fff; background: #222; border-right: 2px solid #6366f1; }
+    .nav-section { padding: 16px 20px 6px; font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Country toggle */
+    .country-toggle { display: flex; gap: 6px; padding: 0 20px; margin-bottom: 8px; }
+    .country-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid #333; background: transparent; color: #888; font-size: 12px; cursor: pointer; }
+    .country-btn.active { background: #222; color: #fff; border-color: #444; }
+
+    /* Page header */
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+    .page-title { font-size: 22px; font-weight: 600; color: #fff; }
+    .page-subtitle { font-size: 13px; color: #666; margin-top: 4px; }
+    .forecast-btn { background: #6366f1; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .forecast-btn:hover { background: #5254cc; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 2px; background: #1a1a1a; border-radius: 8px; padding: 3px; margin-bottom: 28px; width: fit-content; }
+    .tab { padding: 6px 16px; border-radius: 6px; font-size: 13px; color: #666; cursor: pointer; }
+    .tab.active { background: #2a2a2a; color: #fff; }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* Cards */
+    .card { background: #161616; border: 1px solid #222; border-radius: 12px; padding: 20px; }
+    .card-title { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .card-title-label { display: flex; align-items: center; gap: 6px; }
+    .badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+    .badge-purple { background: #2d2b55; color: #a5b4fc; }
+    .badge-green { background: #1a2e1a; color: #4ade80; }
+    .badge-yellow { background: #2e2a1a; color: #fbbf24; }
+    .badge-red { background: #2e1a1a; color: #f87171; }
+
+    /* Metric */
+    .metric-value { font-size: 28px; font-weight: 600; color: #fff; letter-spacing: -0.5px; }
+    .metric-range { font-size: 13px; color: #666; margin-top: 4px; }
+    .metric-label { font-size: 12px; color: #888; margin-top: 6px; }
+    .metric-delta { font-size: 12px; margin-top: 6px; }
+    .delta-up { color: #f87171; }
+    .delta-down { color: #4ade80; }
+
+    /* Bracket bar */
+    .bracket-bar-wrap { margin-top: 8px; }
+    .bracket-bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-bottom: 6px; }
+    .bracket-bar-track { background: #222; border-radius: 4px; height: 8px; position: relative; overflow: visible; }
+    .bracket-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .bracket-bar-threshold { position: absolute; top: -3px; width: 2px; height: 14px; background: #f59e0b; border-radius: 1px; }
+    .bracket-headroom { font-size: 12px; color: #f59e0b; margin-top: 8px; }
+
+    /* Assumptions */
+    .assumption-list { display: flex; flex-direction: column; gap: 10px; }
+    .assumption-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: #1c1c1c; border-radius: 8px; border: 1px solid #252525; }
+    .assumption-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .assumption-text { font-size: 13px; color: #ccc; line-height: 1.5; }
+    .assumption-text strong { color: #fff; }
+    .assumption-confidence { font-size: 11px; color: #555; margin-top: 3px; }
+    .confidence-high { color: #4ade80; }
+    .confidence-med { color: #fbbf24; }
+    .confidence-low { color: #f87171; }
+
+    /* Action items */
+    .action-list { display: flex; flex-direction: column; gap: 10px; }
+    .action-item { display: flex; gap: 12px; padding: 14px; background: #1c1c1c; border-radius: 8px; border: 1px solid #252525; }
+    .action-left { flex-shrink: 0; }
+    .action-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .action-icon-purple { background: #2d2b55; }
+    .action-icon-green { background: #1a2e1a; }
+    .action-icon-yellow { background: #2e2a1a; }
+    .action-body { flex: 1; }
+    .action-title { font-size: 13px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .action-desc { font-size: 12px; color: #888; line-height: 1.5; }
+    .action-saving { font-size: 12px; color: #4ade80; margin-top: 5px; font-weight: 500; }
+    .action-tag { font-size: 10px; color: #666; margin-top: 4px; }
+    .action-tag span { background: #222; padding: 2px 6px; border-radius: 4px; }
+
+    /* Risk flags */
+    .risk-list { display: flex; flex-direction: column; gap: 8px; }
+    .risk-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #999; padding: 8px 0; border-bottom: 1px solid #1e1e1e; }
+    .risk-item:last-child { border-bottom: none; }
+    .risk-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .risk-dot-yellow { background: #fbbf24; }
+    .risk-dot-red { background: #f87171; }
+
+    /* India section */
+    .india-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .regime-card { padding: 14px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; }
+    .regime-card.recommended { border-color: #4ade80; background: #1a2e1a; }
+    .regime-card.other { background: #1c1c1c; border-color: #252525; }
+    .regime-label { font-size: 11px; color: #888; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .regime-value { font-size: 20px; font-weight: 600; color: #fff; }
+    .regime-saving { font-size: 12px; color: #4ade80; margin-top: 4px; }
+
+    /* Chat strip */
+    .chat-strip { background: #161616; border: 1px solid #2a2a2a; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+    .chat-strip-icon { font-size: 18px; }
+    .chat-strip-text { font-size: 13px; color: #888; flex: 1; }
+    .chat-strip-text strong { color: #ccc; }
+    .chat-strip-btn { font-size: 12px; color: #a5b4fc; background: #2d2b55; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+
+    /* Loading state */
+    .generating { display: flex; align-items: center; gap: 10px; padding: 20px; color: #666; font-size: 13px; }
+    .dot-pulse { display: flex; gap: 4px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; animation: pulse 1.2s ease-in-out infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+
+    .section-divider { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 14px; display: flex; align-items: center; gap: 10px; }
+    .section-divider::after { content: ''; flex: 1; height: 1px; background: #222; }
+
+    .full-width { grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-logo">TaxLens <span>beta</span></div>
+      <div class="country-toggle">
+        <button class="country-btn active">🇺🇸 US</button>
+        <button class="country-btn">🇮🇳 India</button>
+      </div>
+      <div class="nav-section">Views</div>
+      <div class="nav-item">📊 Summary</div>
+      <div class="nav-item">📄 By Year</div>
+      <div class="nav-item active">🔮 Forecast</div>
+      <div class="nav-section">Years</div>
+      <div class="nav-item">2024</div>
+      <div class="nav-item">2023</div>
+      <div class="nav-item">2022</div>
+      <div class="nav-item">2021</div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+
+      <!-- Header -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">2026 Forecast</div>
+          <div class="page-subtitle">AI-generated from 4 years of tax history · Powered by Claude Opus</div>
+        </div>
+        <button class="forecast-btn">
+          <span>⟳</span> Regenerate
+        </button>
+      </div>
+
+      <!-- Top metrics -->
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-label">Projected Tax Liability</div>
+            <span class="badge badge-purple">Federal + State</span>
+          </div>
+          <div class="metric-value">$16,400</div>
+          <div class="metric-range">Range: $14,800 – $18,200</div>
+          <div class="metric-delta delta-up">↑ ~$1,200 vs 2024 (income growth)</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-label">Effective Rate</div>
+            <span class="badge badge-yellow">Trending up</span>
+          </div>
+          <div class="metric-value">22.4%</div>
+          <div class="metric-range">Range: 21.1% – 23.6%</div>
+          <div class="metric-delta delta-up">↑ 0.8% vs 2024 (consistent YoY trend)</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-label">Estimated Outcome</div>
+            <span class="badge badge-green">Likely refund</span>
+          </div>
+          <div class="metric-value">+$1,100</div>
+          <div class="metric-range">Range: -$400 to +$2,600</div>
+          <div class="metric-delta delta-down">Similar to 2024 (+$890)</div>
+        </div>
+      </div>
+
+      <!-- Bracket bar -->
+      <div class="card" style="margin-bottom: 16px;">
+        <div class="card-title">
+          <div class="card-title-label">22% Bracket Position</div>
+          <span class="badge badge-yellow">$7,200 headroom</span>
+        </div>
+        <div class="bracket-bar-wrap">
+          <div class="bracket-bar-labels">
+            <span>Bracket floor $94,300</span>
+            <span>Your projected income</span>
+            <span>Bracket ceiling $201,050</span>
+          </div>
+          <div class="bracket-bar-track">
+            <div class="bracket-bar-fill" style="width: 54%;"></div>
+            <div class="bracket-bar-threshold" style="left: 61%;"></div>
+          </div>
+          <div class="bracket-headroom">⚡ $7,200 before hitting 24% — same headroom as 2024 where you left it unused. Consider 401k top-up.</div>
+        </div>
+      </div>
+
+      <!-- Assumptions + Actions -->
+      <div class="grid-2">
+
+        <!-- Assumptions -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-label">AI Assumptions</div>
+            <span class="badge badge-purple">From 4 years of data</span>
+          </div>
+          <div class="assumption-list">
+            <div class="assumption-item">
+              <div class="assumption-icon">💼</div>
+              <div>
+                <div class="assumption-text"><strong>Salary ~$196k</strong> — 10% growth projected (consistent with 11%, 13%, 9% over last 3 years)</div>
+                <div class="assumption-confidence confidence-high">High confidence</div>
+              </div>
+            </div>
+            <div class="assumption-item">
+              <div class="assumption-icon">🎁</div>
+              <div>
+                <div class="assumption-text"><strong>Bonus ~$24k</strong> — present in 3 of last 4 years, typically 12–15% of base salary</div>
+                <div class="assumption-confidence confidence-med">Medium confidence</div>
+              </div>
+            </div>
+            <div class="assumption-item">
+              <div class="assumption-icon">📈</div>
+              <div>
+                <div class="assumption-text"><strong>Capital gains ~$9k</strong> — high historical variance ($2k–$28k); using 3-year median conservatively</div>
+                <div class="assumption-confidence confidence-low">Low confidence · high variance</div>
+              </div>
+            </div>
+            <div class="assumption-item">
+              <div class="assumption-icon">🏠</div>
+              <div>
+                <div class="assumption-text"><strong>Standard deduction</strong> — taken every year in history; no indication of itemizing</div>
+                <div class="assumption-confidence confidence-high">High confidence</div>
+              </div>
+            </div>
+            <div class="assumption-item">
+              <div class="assumption-icon">🇮🇳</div>
+              <div>
+                <div class="assumption-text"><strong>India TDS coverage ~96%</strong> — stable across all years; no advance tax exposure expected</div>
+                <div class="assumption-confidence confidence-high">High confidence</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action items -->
+        <div class="card">
+          <div class="card-title">
+            <div class="card-title-label">What to Do Before Filing</div>
+            <span class="badge badge-green">3 opportunities</span>
+          </div>
+          <div class="action-list">
+            <div class="action-item">
+              <div class="action-left">
+                <div class="action-icon action-icon-purple">🏦</div>
+              </div>
+              <div class="action-body">
+                <div class="action-title">Max your 401k contributions</div>
+                <div class="action-desc">You had $7,200 of bracket headroom in 2024 and didn't use it. Same gap projected for 2026. Additional contributions keep you in 22% vs 24%.</div>
+                <div class="action-saving">Potential saving: ~$1,584</div>
+                <div class="action-tag"><span>From 2024 insight</span> <span>Recurring miss</span></div>
+              </div>
+            </div>
+            <div class="action-item">
+              <div class="action-left">
+                <div class="action-icon action-icon-yellow">📉</div>
+              </div>
+              <div class="action-body">
+                <div class="action-title">Plan capital loss harvesting early</div>
+                <div class="action-desc">Your cap gains are volatile. In 3 of 4 years you had gains with no offsetting losses. With $9k projected, harvesting $5k in losses saves ~$1,100.</div>
+                <div class="action-saving">Potential saving: ~$1,100</div>
+                <div class="action-tag"><span>From 2023 insight</span> <span>Q3 action</span></div>
+              </div>
+            </div>
+            <div class="action-item">
+              <div class="action-left">
+                <div class="action-icon action-icon-green">🇮🇳</div>
+              </div>
+              <div class="action-body">
+                <div class="action-title">File under new India tax regime</div>
+                <div class="action-desc">New regime was favorable in 2024 by ₹28k. Same income profile expected — no reason to switch back.</div>
+                <div class="action-saving">Projected saving: ~₹28,000</div>
+                <div class="action-tag"><span>Confirmed 2024</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Risk flags -->
+      <div class="section-divider">What could shift this forecast</div>
+      <div class="card" style="margin-bottom: 16px;">
+        <div class="risk-list">
+          <div class="risk-item">
+            <div class="risk-dot risk-dot-red"></div>
+            Large RSU vest or stock sale — could push cap gains well above $9k projection and into a higher bracket
+          </div>
+          <div class="risk-item">
+            <div class="risk-dot risk-dot-red"></div>
+            Job change or significant salary jump — would invalidate the 10% growth assumption
+          </div>
+          <div class="risk-item">
+            <div class="risk-dot risk-dot-yellow"></div>
+            No bonus this year — would reduce liability by ~$5,300 and shift outcome to larger refund
+          </div>
+          <div class="risk-item">
+            <div class="risk-dot risk-dot-yellow"></div>
+            Mortgage interest or childcare changes — could make itemizing worth exploring for the first time
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat strip -->
+      <div class="chat-strip">
+        <div class="chat-strip-icon">💬</div>
+        <div class="chat-strip-text"><strong>Ask Opus anything about this forecast</strong> — "What if I sell my NVDA this year?" · "What if no bonus?" · "Walk me through Q3 actions"</div>
+        <button class="chat-strip-btn">Open chat →</button>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
