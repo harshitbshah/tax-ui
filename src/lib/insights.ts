@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+import { formatUsConstantsForPrompt, getUsConstants } from "./constants";
 import type { IndianTaxReturn, TaxReturn } from "./schema";
-import { formatConstantsForPrompt, getTaxConstants } from "./tax-constants";
 
 export type InsightItem = {
   title: string;
@@ -97,7 +97,7 @@ export function buildInsightsPrompt(
   }
 ]`;
 
-  const constants = getTaxConstants(year);
+  const constants = getUsConstants(year);
 
   const parts: string[] = [
     `You are a retroactive tax advisor. Analyze the user's ${year} tax return and identify 2–4 specific things they could have done differently to reduce their tax liability for that year.`,
@@ -115,7 +115,7 @@ export function buildInsightsPrompt(
   }
 
   if (constants) {
-    parts.push("", formatConstantsForPrompt(constants));
+    parts.push("", formatUsConstantsForPrompt(constants));
   } else {
     parts.push(
       "",

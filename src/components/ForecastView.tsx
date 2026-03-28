@@ -1,7 +1,7 @@
 import type { ForecastState } from "../App";
+import { getUsConstants } from "../lib/constants";
 import { formatCurrency, formatPercent } from "../lib/format";
 import type { TaxReturn } from "../lib/schema";
-import { getTaxConstants } from "../lib/tax-constants";
 import { ActionItemsCard } from "./ActionItemsCard";
 import { AssumptionsCard } from "./AssumptionsCard";
 import { BracketBar } from "./BracketBar";
@@ -55,7 +55,7 @@ function MetricCard({
 
 function ConstantsStatus({ years, warnOnly = false }: { years: number[]; warnOnly?: boolean }) {
   if (years.length === 0) return null;
-  const visibleYears = warnOnly ? years.filter((y) => getTaxConstants(y) === null) : years;
+  const visibleYears = warnOnly ? years.filter((y) => getUsConstants(y) === null) : years;
   if (visibleYears.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -63,7 +63,7 @@ function ConstantsStatus({ years, warnOnly = false }: { years: number[]; warnOnl
         {warnOnly ? "Missing IRS constants:" : "IRS constants:"}
       </span>
       {visibleYears.map((y) => {
-        const verified = getTaxConstants(y) !== null;
+        const verified = getUsConstants(y) !== null;
         return (
           <span
             key={y}

@@ -20,6 +20,7 @@ Tax return PDF parser using Claude API and Bun.
 - [`docs/FORECAST_SPEC.md`](docs/FORECAST_SPEC.md) — AI forecast + insights feature spec (5 phases, test requirements per phase)
 - [`docs/FEATURES.md`](docs/FEATURES.md) — full feature backlog
 - [`docs/PROGRESS.md`](docs/PROGRESS.md) — session-by-session progress log
+- [`docs/ADDING_COUNTRY_CONSTANTS.md`](docs/ADDING_COUNTRY_CONSTANTS.md) — how to add tax constants for a new country
 - [`docs/HOSTING.md`](docs/HOSTING.md) — OCI hosting plan (deferred)
 
 ## Architecture

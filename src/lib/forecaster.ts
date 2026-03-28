@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+import { formatUsConstantsForPrompt, getUsConstants } from "./constants";
 import type { IndianTaxReturn, TaxReturn } from "./schema";
-import { formatConstantsForPrompt, getTaxConstants } from "./tax-constants";
 
 export type ForecastResponse = {
   projectedYear: number;
@@ -167,7 +167,7 @@ export function buildForecastPrompt(
   "generatedAt": "${new Date().toISOString()}"
 }`;
 
-  const constants = getTaxConstants(projectedYear);
+  const constants = getUsConstants(projectedYear);
 
   const parts: string[] = [
     `You are a tax planning analyst. Analyze the user's full tax history and produce a structured forecast for ${projectedYear}.`,
@@ -181,7 +181,7 @@ export function buildForecastPrompt(
   }
 
   if (constants) {
-    parts.push("", formatConstantsForPrompt(constants));
+    parts.push("", formatUsConstantsForPrompt(constants));
   } else {
     parts.push(
       "",

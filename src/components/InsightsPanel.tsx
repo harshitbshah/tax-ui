@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { getUsConstants } from "../lib/constants";
 import type { InsightItem } from "../lib/insights";
-import { getTaxConstants } from "../lib/tax-constants";
 
 const CATEGORY_ICONS: Record<InsightItem["category"], string> = {
   retirement: "🏦",
@@ -23,7 +23,7 @@ type State =
   | { status: "error"; message: string };
 
 function ConstantsBadge({ year }: { year: number }) {
-  const verified = getTaxConstants(year) !== null;
+  const verified = getUsConstants(year) !== null;
   return (
     <span
       className={

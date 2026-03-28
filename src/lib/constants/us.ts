@@ -1,19 +1,22 @@
-// IRS federal tax constants injected into forecast and insights prompts.
+// US federal tax constants (IRS) injected into forecast and insights prompts.
 //
-// How to update each year (takes ~10 minutes):
-//   1. IRS publishes new-year adjustments each October at:
-//      https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-XXXX
-//   2. Verify brackets at: https://www.irs.gov/filing/federal-income-tax-rates-and-brackets
-//   3. Verify LTCG thresholds at: https://www.irs.gov/taxtopics/tc409
-//   4. Verify contribution limits at the 401k/IRA limit newsroom release
-//   5. Add a new entry to TAX_CONSTANTS below. Copy the prior year, update numbers, update source.
+// How to update each year (~10 minutes, each October when IRS publishes adjustments):
+//   1. New-year adjustments: https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-XXXX
+//   2. Verify brackets at:  https://www.irs.gov/filing/federal-income-tax-rates-and-brackets
+//   3. Verify LTCG at:      https://www.irs.gov/taxtopics/tc409
+//   4. Verify contrib limits at the 401k/IRA limit newsroom release
+//   5. Add a new entry to US_TAX_CONSTANTS below. Copy the prior year, update numbers, update sources.
+//
+// To add a new country: see docs/ADDING_COUNTRY_CONSTANTS.md
 //
 // Sources for each year are cited inline — never update numbers without verifying against
 // an authoritative IRS source.
 
-export type BracketEntry = { floor: number; ceiling: number; rate: number };
+import type { BracketEntry } from "./shared";
 
-export type YearConstants = {
+export type { BracketEntry };
+
+export type UsYearConstants = {
   year: number;
   // IRS source URL(s) — update this when you update numbers
   sources: string[];
@@ -42,7 +45,7 @@ export type YearConstants = {
 };
 
 // ceiling: Infinity represents "no upper limit" (top bracket)
-const TAX_CONSTANTS: Record<number, YearConstants> = {
+const US_TAX_CONSTANTS: Record<number, UsYearConstants> = {
   2018: {
     year: 2018,
     // First year of TCJA brackets. Numbers from training data — verify at:
@@ -499,13 +502,13 @@ const TAX_CONSTANTS: Record<number, YearConstants> = {
   },
 };
 
-export function getTaxConstants(year: number): YearConstants | null {
-  return TAX_CONSTANTS[year] ?? null;
+export function getUsConstants(year: number): UsYearConstants | null {
+  return US_TAX_CONSTANTS[year] ?? null;
 }
 
 // Format constants as a compact string for injection into AI prompts.
 // Keeps tokens lean — no JSON structure, just the numbers Claude needs.
-export function formatConstantsForPrompt(c: YearConstants): string {
+export function formatUsConstantsForPrompt(c: UsYearConstants): string {
   const fmt = (n: number) => (n === Infinity ? "+" : `$${n.toLocaleString()}`);
 
   const bracketTable = (brackets: BracketEntry[]) =>
