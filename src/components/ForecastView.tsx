@@ -158,7 +158,7 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
 
   // Loaded
   const { data } = state;
-  const { taxLiability, effectiveRate, estimatedOutcome, bracket } = data;
+  const { taxLiability, effectiveRate, estimatedOutcome } = data;
 
   const outcomeSign = estimatedOutcome.value >= 0 ? "+" : "";
   const outcomeBadge =
@@ -211,8 +211,8 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
           />
         </div>
 
-        {/* Bracket bar */}
-        <BracketBar {...bracket} />
+        {/* Bracket bar — US filers only */}
+        {data.bracket && <BracketBar {...data.bracket} />}
 
         {/* Assumptions + Action items */}
         <div className="grid grid-cols-2 gap-3">

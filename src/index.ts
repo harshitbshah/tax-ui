@@ -394,7 +394,7 @@ const routes: Record<string, any> = {
       try {
         const [usReturns, indiaReturns] = await Promise.all([getReturns(), getIndiaReturns()]);
 
-        if (Object.keys(usReturns).length === 0) {
+        if (Object.keys(usReturns).length === 0 && Object.keys(indiaReturns).length === 0) {
           return Response.json({ error: "No tax returns on file" }, { status: 400 });
         }
 

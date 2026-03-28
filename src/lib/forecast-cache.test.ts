@@ -60,7 +60,7 @@ describe("saveForecastCache", () => {
     const result = await getForecastCache();
     expect(result?.effectiveRate).toEqual({ value: 20.0, low: 17.0, high: 23.0 });
     expect(result?.estimatedOutcome.label).toBe("refund");
-    expect(result?.bracket.headroom).toBe(20050);
+    expect(result?.bracket?.headroom).toBe(20050);
     expect(result?.generatedAt).toBe("2026-03-28T10:00:00.000Z");
   });
 

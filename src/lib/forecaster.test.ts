@@ -224,7 +224,7 @@ describe("parseForecastResponse", () => {
     });
     const result = parseForecastResponse(json);
     // 170050 - 150000 = 20050, not Claude's 99999
-    expect(result.bracket.headroom).toBe(20050);
+    expect(result.bracket?.headroom).toBe(20050);
   });
 
   test("missing India data → india field is undefined", () => {

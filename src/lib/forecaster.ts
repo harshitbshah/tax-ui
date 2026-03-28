@@ -15,7 +15,8 @@ export type ForecastResponse = {
   effectiveRate: { value: number; low: number; high: number };
   estimatedOutcome: { value: number; low: number; high: number; label: "refund" | "owed" };
 
-  bracket: {
+  // Only present for US filers; omitted when the user has India returns only.
+  bracket?: {
     rate: number;
     floor: number;
     ceiling: number;
@@ -121,21 +122,30 @@ export function buildForecastPrompt(
   const usSummaries = usYears.map((y) => buildUsYearSummary(y, usReturns[y]!));
   const indiaSummaries = indiaYears.map((y) => buildIndiaYearSummary(indiaReturns[y]!));
 
-  const projectedYear = usYears.length > 0 ? Math.max(...usYears) + 1 : new Date().getFullYear();
+  const hasUs = usYears.length > 0;
   const hasIndia = indiaSummaries.length > 0;
+  const projectedYear = hasUs
+    ? Math.max(...usYears) + 1
+    : hasIndia
+      ? Math.max(...indiaYears) + 1 // India FY start year
+      : new Date().getFullYear();
 
   const schemaDoc = `{
   "projectedYear": ${projectedYear},
   "taxLiability": { "value": number, "low": number, "high": number },
   "effectiveRate": { "value": number, "low": number, "high": number },
   "estimatedOutcome": { "value": number, "low": number, "high": number, "label": "refund" | "owed" },
-  "bracket": {
+  ${
+    hasUs
+      ? `"bracket": {
     "rate": number,
     "floor": number,
     "ceiling": number,
     "projectedIncome": number,
     "headroom": number
-  },
+  },`
+      : `// bracket: omit — no US returns`
+  }
   "assumptions": [
     {
       "icon": string (single emoji),
@@ -176,10 +186,11 @@ export function buildForecastPrompt(
 
   const parts: string[] = [
     `You are a tax planning analyst. Analyze the user's full tax history and produce a structured forecast for ${projectedYear}.`,
-    "",
-    "## US Tax History",
-    JSON.stringify(usSummaries, null, 2),
   ];
+
+  if (hasUs) {
+    parts.push("", "## US Tax History", JSON.stringify(usSummaries, null, 2));
+  }
 
   if (hasIndia) {
     parts.push("", "## India ITR History", JSON.stringify(indiaSummaries, null, 2));
@@ -213,15 +224,20 @@ export function buildForecastPrompt(
   parts.push(
     "",
     "## Instructions",
-    `- Project ${projectedYear} US federal + state taxes based on observed trends (income growth, deduction patterns, capital gains variance)`,
+    hasUs
+      ? `- Project ${projectedYear} US federal + state taxes based on observed trends (income growth, deduction patterns, capital gains variance)`
+      : `- Project FY ${projectedYear}–${String(projectedYear + 1).slice(2)} India income tax based on observed trends`,
     "- Surface 3–5 action items — mix of forward-looking optimizations and retroactive insights from past years that are still actionable",
     "- For each assumption, state your reasoning and confidence level honestly",
     "- For risk flags: only flag genuine uncertainties (capital gains variance, bonus likelihood, rate changes). Max 3 flags.",
     hasIndia
-      ? "- For India: compare old vs new regime for the upcoming year based on recent ITR history. Recommend the better one."
+      ? "- For India: compare old vs new regime for the upcoming FY based on recent ITR history. Recommend the better one. Return oldRegimeTax and newRegimeTax as plain integers in INR (no commas, no ₹ symbol)."
       : "",
-    "- taxLiability = projected combined federal + state tax owed (before withholding)",
-    "- estimatedOutcome = refund (positive value) or owed (negative value) at filing time, based on projected withholding trends",
+    hasUs
+      ? "- taxLiability = projected combined US federal + state tax owed (before withholding)"
+      : "- taxLiability = projected India total tax liability in INR",
+    "- estimatedOutcome = refund (positive value) or owed (negative value) at filing time, based on projected withholding/advance-tax trends",
+    hasUs ? "" : "- bracket: omit this field entirely — there are no US returns",
     "- Return ONLY valid JSON. No markdown, no explanation outside the JSON.",
     "",
     "## Required output schema",
@@ -296,8 +312,15 @@ export function parseForecastResponse(text: string): ForecastResponse {
     description: String(f.description ?? ""),
   }));
 
-  const bracket = raw.bracket as Record<string, unknown>;
+  const bracketRaw = raw.bracket as Record<string, unknown> | undefined;
   const outcome = raw.estimatedOutcome as Record<string, unknown>;
+
+  // Coerce a value that Claude might return as a number or numeric string to a number
+  const toNum = (v: unknown): number => {
+    if (typeof v === "number") return v;
+    if (typeof v === "string") return parseFloat(v.replace(/[^0-9.-]/g, "")) || 0;
+    return 0;
+  };
 
   const result: ForecastResponse = {
     projectedYear: raw.projectedYear as number,
@@ -307,35 +330,34 @@ export function parseForecastResponse(text: string): ForecastResponse {
       ...(outcome as object),
       label: outcome.label === "refund" ? "refund" : "owed",
     } as ForecastResponse["estimatedOutcome"],
-    bracket: {
-      rate: Number(bracket.rate),
-      floor: Number(bracket.floor),
-      ceiling: Number(bracket.ceiling),
-      projectedIncome: Number(bracket.projectedIncome),
-      // Always recompute headroom from ceiling and projectedIncome — Claude sometimes miscalculates
-      headroom: Number(bracket.ceiling) - Number(bracket.projectedIncome),
-    },
+    ...(bracketRaw
+      ? {
+          bracket: {
+            rate: toNum(bracketRaw.rate),
+            floor: toNum(bracketRaw.floor),
+            ceiling: toNum(bracketRaw.ceiling),
+            projectedIncome: toNum(bracketRaw.projectedIncome),
+            // Always recompute headroom — Claude sometimes miscalculates
+            headroom: toNum(bracketRaw.ceiling) - toNum(bracketRaw.projectedIncome),
+          },
+        }
+      : {}),
     assumptions,
     actionItems,
     riskFlags,
     generatedAt: typeof raw.generatedAt === "string" ? raw.generatedAt : new Date().toISOString(),
   };
 
-  // India section: only include if all required fields are present
+  // India section: coerce amounts to numbers in case Claude returns INR strings
   if (raw.india && typeof raw.india === "object") {
     const india = raw.india as Record<string, unknown>;
-    if (
-      typeof india.oldRegimeTax === "number" &&
-      typeof india.newRegimeTax === "number" &&
-      typeof india.savingUnderRecommended === "number" &&
-      typeof india.reasoning === "string"
-    ) {
+    if (india.reasoning) {
       result.india = {
         regimeRecommendation: india.regimeRecommendation === "old" ? "old" : "new",
-        oldRegimeTax: india.oldRegimeTax,
-        newRegimeTax: india.newRegimeTax,
-        savingUnderRecommended: india.savingUnderRecommended,
-        reasoning: india.reasoning,
+        oldRegimeTax: toNum(india.oldRegimeTax),
+        newRegimeTax: toNum(india.newRegimeTax),
+        savingUnderRecommended: toNum(india.savingUnderRecommended),
+        reasoning: String(india.reasoning),
       };
     }
   }
