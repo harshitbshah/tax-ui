@@ -35,6 +35,7 @@ interface SummaryProps extends CommonProps {
 
 interface ForecastProps extends CommonProps {
   view: "forecast";
+  onToggleChat?: () => void;
 }
 
 interface LoadingProps extends CommonProps {
@@ -186,7 +187,7 @@ export function MainPanel(props: Props) {
           )}
         </div>
       ) : props.view === "forecast" ? (
-        <ForecastView />
+        <ForecastView returns={props.returns} onToggleChat={props.onToggleChat} />
       ) : null}
     </div>
   );

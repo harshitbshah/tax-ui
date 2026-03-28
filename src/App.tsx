@@ -645,7 +645,13 @@ export function App() {
       return <MainPanel view="loading" pendingUpload={selectedPendingUpload} {...commonProps} />;
     }
     if (state.selectedYear === "forecast") {
-      return <MainPanel view="forecast" {...commonProps} />;
+      return (
+        <MainPanel
+          view="forecast"
+          onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          {...commonProps}
+        />
+      );
     }
     if (state.selectedYear === "summary") {
       return <MainPanel view="summary" {...commonProps} />;

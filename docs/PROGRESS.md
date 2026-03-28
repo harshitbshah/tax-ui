@@ -4,6 +4,37 @@ One entry per checkpoint. Most recent first.
 
 ---
 
+## 2026-03-28 (Phase 3)
+
+**Done:**
+- **Phase 3: Forecast view components** — full Forecast view replacing the placeholder
+  - `BracketBar.tsx` — bracket position bar with fill %, headroom badge, headroom advisory text; exports `computeFillPercent()` (testable)
+  - `AssumptionsCard.tsx` — assumption list with icon, label, value, reasoning, confidence badge (emerald/amber/rose); exports `confidenceBadgeClass()` (testable)
+  - `ActionItemsCard.tsx` — action items with category icon, title, description, saving amount, source year + timing tags
+  - `RiskFlags.tsx` — risk flags sorted high-before-medium with colored dots; exports `sortedByHighFirst()` (testable)
+  - `IndiaRegimeCard.tsx` — old vs new regime comparison, recommended regime highlighted in green, saving badge
+  - `ForecastChatStrip.tsx` — chat invite strip at bottom of forecast view
+  - `ForecastView.tsx` — full container: loading/generating/empty/error/loaded states; fetches `GET /api/forecast` on mount; "Generate Forecast" / "Regenerate" button calls `POST /api/forecast`; three metric cards; bracket bar; 2-col assumptions+actions; risk flags; India card; chat strip
+  - `MainPanel.tsx` — added `onToggleChat?` to `ForecastProps`, threaded to `ForecastView`
+  - `App.tsx` — forecast render case now passes `onToggleChat`
+  - `ForecastComponents.test.ts` — 15 unit tests: `computeFillPercent` (7), `confidenceBadgeClass` (3), `sortedByHighFirst` (5)
+
+**Decisions:**
+- `ForecastView` owns its own data-fetch state machine (loading → empty | loaded | error | generating) rather than lifting to App.tsx — forecast data is orthogonal to core app state and doesn't need to survive navigation
+- `computeFillPercent` clamped 0–100 at both ends — income below floor and above ceiling both render cleanly
+- `nextRate` shown in headroom text is `rate + 2` (rough approximation: 22→24, 24→32 etc.) — good enough for advisory copy, not a tax calculator
+- Empty state shows year count so the user understands what Claude will reason over
+
+**Tests:** 128 pass (113 + 15 new component tests)
+
+**Known gaps:**
+- `ForecastView` fetch is not tested (needs DOM / fetch mock setup the project doesn't have yet)
+- Range formatting in MetricCard for negative outcome values is slightly asymmetric ("Range: -$400 to +$2,600") — acceptable
+
+**Next:** Phase 4 (SQLite cache) or Phase 5 (per-year insights). Phase 4 is optional — current JSON file cache works. Recommend Phase 5 first for user-facing value.
+
+---
+
 ## 2026-03-28 (Phase 2)
 
 **Done:**
