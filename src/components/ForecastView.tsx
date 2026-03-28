@@ -116,7 +116,7 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-(--color-text-muted)">
         <GeneratingDots />
         <p className="text-sm">Claude is analyzing {yearCount} years of tax history…</p>
-        <ConstantsStatus years={allForecastYears} />
+        <ConstantsStatus years={allForecastYears} warnOnly />
       </div>
     );
   }
