@@ -191,24 +191,20 @@ export function Sidebar({
           align="end"
           sideOffset={4}
           trigger={
-            <button
-              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-(--color-text-muted) transition-colors hover:bg-(--color-bg-muted) hover:text-(--color-text)"
-              title="Actions"
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-label="Actions"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <circle cx="8" cy="3" r="1" fill="currentColor" stroke="none" />
-                <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
-                <circle cx="8" cy="13" r="1" fill="currentColor" stroke="none" />
-              </svg>
-            </button>
+              <circle cx="8" cy="3" r="1" fill="currentColor" stroke="none" />
+              <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+              <circle cx="8" cy="13" r="1" fill="currentColor" stroke="none" />
+            </svg>
           }
         >
           <MenuItem onClick={onOpenStart}>

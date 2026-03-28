@@ -340,13 +340,15 @@ const routes: Record<string, any> = {
       }
     },
   },
-  "/api/forecast": {
-    GET: async () => {
+  // Bun's wildcard "/*" conflicts with multi-method route objects, so branch on req.method.
+  "/api/forecast": async (req: Request) => {
+    if (req.method === "GET") {
       const cached = await getForecastCache();
       if (!cached) return new Response("Not found", { status: 404 });
       return Response.json(cached);
-    },
-    POST: async () => {
+    }
+
+    if (req.method === "POST") {
       const apiKey = getApiKey();
       if (!apiKey) {
         return Response.json({ error: "No API key configured" }, { status: 400 });
@@ -367,7 +369,9 @@ const routes: Record<string, any> = {
         const message = error instanceof Error ? error.message : "Unknown error";
         return Response.json({ error: message }, { status: 500 });
       }
-    },
+    }
+
+    return new Response("Method Not Allowed", { status: 405 });
   },
   "/api/parse": {
     POST: async (req: Request) => {
@@ -425,6 +429,8 @@ if (!isProd) {
 
 const server = serve({
   port,
+  // Claude API calls (forecast, parse) can take 30–90s. Default idle timeout is 10s.
+  idleTimeout: 120,
   routes,
   fetch: isProd
     ? async (req) => {

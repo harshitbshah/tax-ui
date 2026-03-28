@@ -96,16 +96,24 @@ export function ForecastView({ returns, onToggleChat }: Props) {
     try {
       const res = await fetch("/api/forecast", { method: "POST" });
       if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        setState({ status: "error", message: body.error ?? "Forecast failed" });
+        let message = `Server error ${res.status}`;
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body.error) message = body.error;
+        } catch {
+          // non-JSON error body (e.g. "Method Not Allowed") — use status code message
+        }
+        setState({ status: "error", message });
         return;
       }
       const data = (await res.json()) as ForecastResponse;
       setState({ status: "loaded", data });
-    } catch {
+    } catch (err) {
+      // Network error or server closed connection (e.g. timeout before idleTimeout was raised)
+      const message = err instanceof Error ? err.message : "Network error — is the server running?";
       setState({
         status: "error",
-        message: regenerate ? "Regeneration failed" : "Forecast failed",
+        message: regenerate ? `Regeneration failed: ${message}` : message,
       });
     }
   }
