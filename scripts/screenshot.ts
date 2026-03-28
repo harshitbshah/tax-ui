@@ -291,7 +291,7 @@ async function main() {
 
     // 3. Start server with a dummy API key (satisfies hasKey check; no real calls made)
     console.log("Starting dev server on port", PORT, "...");
-    const server = Bun.spawn(["bun", "--hot", "src/index.ts", "--port", String(PORT)], {
+    const server = Bun.spawn(["bun", "src/index.ts", "--port", String(PORT)], {
       cwd: ROOT,
       env: { ...process.env, ANTHROPIC_API_KEY: "sk-ant-mock-screenshots-only" },
       stdout: "ignore",
@@ -303,38 +303,48 @@ async function main() {
 
     const browser = await chromium.launch();
     const ctx = await browser.newContext({
-      viewport: { width: 1280, height: 820 },
+      viewport: { width: 1280, height: 900 },
       colorScheme: "light",
     });
+
+    // Close the chat panel before any page loads (it's persisted in localStorage)
+    await ctx.addInitScript(() => {
+      localStorage.setItem("tax-chat-open", "false");
+    });
+
     const page = await ctx.newPage();
 
+    // Tabs in MainPanel are plain <button> elements — use getByRole("button")
+    const clickTab = async (name: string) => {
+      await page.getByRole("button", { name, exact: true }).click();
+    };
+
     // Suppress API key check — server has ANTHROPIC_API_KEY set so /api/config returns hasKey:true
-    await page.goto(BASE_URL, { waitUntil: "networkidle" });
+    await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     // ── 1. Summary view ──
-    // Should land on summary by default; wait for charts to render
     await page.waitForSelector('[class*="SummaryTable"], table', { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(600);
     await screenshot(page, "summary");
 
     // ── 2. By Year — Receipt tab (2024) ──
-    // Click the 2024 year in the sidebar
     await page.getByText("2024").first().click();
     await page.waitForTimeout(500);
-    // Make sure we're on receipt tab (default)
-    const receiptTab = page.getByRole("tab", { name: /receipt/i });
-    if (await receiptTab.isVisible()) await receiptTab.click();
+    await clickTab("receipt");
     await page.waitForTimeout(400);
     await screenshot(page, "by-year-receipt");
 
     // ── 3. By Year — Charts tab (bracket visualizer) ──
-    const chartsTab = page.getByRole("tab", { name: /charts/i });
-    if (await chartsTab.isVisible()) await chartsTab.click();
+    await clickTab("charts");
+    // Wait for BracketVisualizer to render
+    await page.waitForSelector('input[type="range"]', { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(600);
+    // Scroll to top of the charts area so the bracket bar is fully visible
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(200);
     await screenshot(page, "bracket-visualizer");
 
     // ── 4. What-if simulator (sliders engaged) ──
-    // Move first slider (401k top-up) to ~$10,000
     const sliders = page.locator('input[type="range"]');
     const sliderCount = await sliders.count();
     if (sliderCount >= 1) {
@@ -343,7 +353,14 @@ async function main() {
     if (sliderCount >= 2) {
       await setSlider(page, 1, 7000); // IRA contribution $7,000
     }
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
+    // Scroll the main content pane down so the simulator results (savings callout) are visible
+    await page.evaluate(() => {
+      const panes = Array.from(document.querySelectorAll<HTMLElement>(".overflow-y-auto"));
+      const main = panes.find((el) => el.scrollHeight > el.clientHeight && el.clientWidth > 400);
+      if (main) main.scrollTop = 300;
+    });
+    await page.waitForTimeout(200);
     await screenshot(page, "what-if-simulator");
 
     // ── 5. Forecast view ──
@@ -354,12 +371,15 @@ async function main() {
     // ── 6. Insights panel — idle state on 2023 ──
     await page.getByText("2023").first().click();
     await page.waitForTimeout(400);
-    const receiptTab2 = page.getByRole("tab", { name: /receipt/i });
-    if (await receiptTab2.isVisible()) await receiptTab2.click();
+    await clickTab("receipt");
     await page.waitForTimeout(500);
-    // Scroll down to reveal the insights panel
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
-    await page.waitForTimeout(300);
+    // Scroll the main content pane to bottom to reveal the InsightsPanel (below the receipt)
+    await page.evaluate(() => {
+      const panes = Array.from(document.querySelectorAll<HTMLElement>(".overflow-y-auto"));
+      const main = panes.find((el) => el.scrollHeight > el.clientHeight && el.clientWidth > 400);
+      if (main) main.scrollTop = main.scrollHeight;
+    });
+    await page.waitForTimeout(400);
     await screenshot(page, "insights-panel");
 
     await browser.close();
