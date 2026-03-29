@@ -13,7 +13,7 @@ async function readCache(): Promise<Record<string, ForecastResponse>> {
   const file = Bun.file(CACHE_FILE);
   if (!(await file.exists())) return {};
   try {
-    const raw = await file.json() as Record<string, unknown>;
+    const raw = (await file.json()) as Record<string, unknown>;
     if (!raw || typeof raw !== "object") return {};
     // Backward compat: old format stored a single ForecastResponse at root (not keyed by country)
     if ("projectedYear" in raw) return {};
@@ -37,7 +37,10 @@ export async function saveForecastCache(
 ): Promise<void> {
   const cache = await readCache();
   cache[country] = forecast;
-  await Bun.write(CACHE_FILE, JSON.stringify({ __version: FORECAST_PROMPT_VERSION, ...cache }, null, 2));
+  await Bun.write(
+    CACHE_FILE,
+    JSON.stringify({ __version: FORECAST_PROMPT_VERSION, ...cache }, null, 2),
+  );
 }
 
 export async function clearForecastCache(country?: string): Promise<void> {
@@ -50,5 +53,8 @@ export async function clearForecastCache(country?: string): Promise<void> {
   }
   const cache = await readCache();
   delete cache[country];
-  await Bun.write(CACHE_FILE, JSON.stringify({ __version: FORECAST_PROMPT_VERSION, ...cache }, null, 2));
+  await Bun.write(
+    CACHE_FILE,
+    JSON.stringify({ __version: FORECAST_PROMPT_VERSION, ...cache }, null, 2),
+  );
 }

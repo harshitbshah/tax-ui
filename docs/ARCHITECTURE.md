@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-03-28 (country-agnostic plugin architecture — Phases 1–4)
+Last updated: 2026-03-28 (per-country forecasts + cache versioning)
 
 ---
 
@@ -18,8 +18,8 @@ Bun server (src/index.ts)   idleTimeout: 120s (Claude calls take 30–90s)
     ├── POST /api/config/key             → validate + save API key
     ├── POST /api/chat                   → Sonnet: year-aware chat
     ├── POST /api/suggestions            → Haiku: 3 follow-up questions
-    ├── GET  /api/forecast               → cached ForecastResponse (404 if none)
-    ├── POST /api/forecast               → Sonnet: generate + cache ForecastResponse (all countries)
+    ├── GET  /api/forecast?country=X     → cached ForecastResponse for that country (404 if none)
+    ├── POST /api/forecast?country=X     → Sonnet: generate + cache ForecastResponse for that country only
     ├── GET  /api/insights?year=N        → cached InsightItem[] for year N (404 if none)
     ├── POST /api/insights?year=N        → Sonnet: generate + cache InsightItem[] for year N
     ├── POST /api/clear-data             → wipe all returns + caches for all registered countries

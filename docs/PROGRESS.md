@@ -4,6 +4,44 @@ One entry per checkpoint. Most recent first.
 
 ---
 
+## 2026-03-28 (Per-country forecasts + forecast cache versioning)
+
+**Done:**
+
+**Per-country forecast split:**
+- **`src/lib/forecast-cache.ts`** — rewritten from single `ForecastResponse` to `Record<string, ForecastResponse>` keyed by country code. `getForecastCache(country)`, `saveForecastCache(country, forecast)`, `clearForecastCache(country?)` (no arg deletes file; country arg removes just that key). Backward compat: old root-level `ForecastResponse` format detected via `"projectedYear" in raw` and discarded (treated as stale — see versioning below).
+- **`src/lib/forecast-cache.test.ts`** — updated to new per-country signatures; added tests for: multiple countries stored independently, clearing one doesn't affect the other, backward compat, version mismatch.
+- **`/api/forecast?country=X`** — GET and POST now scoped to one country. POST passes only `{ [country]: returns }` and `[plugin]` to `generateForecast`. GET returns cached forecast for that country only.
+- **`src/App.tsx`** — `forecastStates: Record<string, ForecastState>` replaces single `forecastState`. Lazy-fetched per country via `useEffect` on `[activeCountry, isLoading]`. `handleGenerateForecast` scoped to `state.activeCountry`.
+- **`src/lib/forecaster.ts`** — `buildForecastPrompt` reworked for country-awareness: `hasUs` flag controls action category enum (`retirement|withholding` vs `investments|regime_choice|advance_tax`), currency examples ($ vs ₹), and explicit exclusion instruction ("Do NOT mention 401k, IRA, FICA, W-2 withholding...") when India-only. `ForecastResponse.actionItems[].category` expanded to include India categories. `parseForecastResponse` `validCategory` set expanded to match.
+- **`src/lib/format.ts`** — added `formatAmount(value, currency, showSign?)` dispatcher: routes to `formatINRCompact` for ₹, `formatCurrency` for $.
+- **`src/components/ForecastView.tsx`** — currency-aware via `currency` prop; `fmt = (v) => formatAmount(v, currency)`; `isUs = activeCountry === "us"` gates US-specific UI (bracket bar, "Federal + State" badge, constants status). `IndiaRegimeCard` shown when `data.india` present.
+- **`src/components/MainPanel.tsx`** — passes `currency={plugin?.currency ?? "$"}` and `activeReturns` (not hardcoded `usReturns`) to `ForecastView`.
+- **`src/countries/india/index.ts`** — `promptInstruction` expanded with explicit India-specific action item categories (80C, 80D, HRA, Section 24, advance tax).
+- **`src/components/ActionItemsCard.tsx`** — added icons for India categories: `investments: "📊"`, `regime_choice: "⚖️"`, `advance_tax: "📅"`.
+
+**Forecast cache versioning:**
+- **`FORECAST_PROMPT_VERSION = "3"`** in `forecast-cache.ts` — written as `__version` in the cache file on every save. On read, version mismatch (or missing version, including old combined format) causes all cached forecasts to be silently discarded → fresh generation triggered on next visit. Eliminates the class of bug where prompt code changes but the stale pre-change forecast is served indefinitely until manual Regenerate.
+- Bumping `FORECAST_PROMPT_VERSION` is the standard procedure whenever the forecast prompt logic changes significantly.
+
+**Root cause of "India forecast showing US content" bug:**
+1. Old dev server was running stale code (before per-country split). Restarting the server fixed it.
+2. Even with new code, a stale combined forecast cached before the prompt fix could be served. Cache versioning fixes this permanently.
+
+**Tests:** 167 pass (up from 159). New tests cover per-country cache storage, clearing, backward compat, and version mismatch.
+
+**Decisions:**
+- Independent per-country forecasts (Option B): US and India taxes are DTAA-independent — India creates FTC on the US return, not a combined liability. Separate forecasts are more useful and simpler.
+- Cache version at file level (not per-country): when the prompt changes, all country caches are stale. Per-country versioning would add complexity without benefit.
+- Old combined format treated as stale (not migrated to `{ us: <old> }`): the combined forecast was generated with US-biased India prompt code and shouldn't be used.
+
+**Known gaps:**
+- `bun --hot` doesn't always reload all modules on file change; users must restart the server after pulling significant changes. No autodetection in place.
+
+**Next:** Items from FEATURES.md, or India FY 2026 constants (add after April Union Budget if needed).
+
+---
+
 ## 2026-03-28 (Post-/simplify cleanup)
 
 **Done:**
