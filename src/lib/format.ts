@@ -28,6 +28,13 @@ export function formatCurrency(amount: number, showSign = false): string {
   return amount < 0 ? `-${formatted}` : formatted;
 }
 
+// Currency-agnostic formatter — dispatches based on the plugin's currency symbol.
+// Use this in components that render forecast/insights data for any country.
+export function formatAmount(amount: number, currency: string, showSign = false): string {
+  if (currency === "₹") return formatINRCompact(amount, showSign);
+  return formatCurrency(amount, showSign);
+}
+
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }

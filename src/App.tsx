@@ -192,7 +192,7 @@ export function App() {
     isDemo: isHostedEnvironment(),
     isDev: false,
   });
-  const [forecastState, setForecastState] = useState<ForecastState>({ status: "loading" });
+  const [forecastStates, setForecastStates] = useState<Record<string, ForecastState>>({});
   const [devDemoOverride, setDevDemoOverride] = useState<boolean | null>(getDevDemoOverride);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -294,31 +294,37 @@ export function App() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Fetch the forecast for a country the first time it's needed (on country switch or after load)
   useEffect(() => {
-    fetch("/api/forecast")
+    if (state.isLoading) return;
+    const country = state.activeCountry;
+    if (forecastStates[country]) return; // already fetched
+    setForecastStates((prev) => ({ ...prev, [country]: { status: "loading" } }));
+    fetch(`/api/forecast?country=${country}`)
       .then(async (res) => {
         if (res.status === 404) {
-          setForecastState({ status: "empty" });
+          setForecastStates((prev) => ({ ...prev, [country]: { status: "empty" } }));
         } else if (res.ok) {
           const data = (await res.json()) as ForecastResponse;
-          setForecastState({ status: "loaded", data });
+          setForecastStates((prev) => ({ ...prev, [country]: { status: "loaded", data } }));
         } else {
-          setForecastState({
-            status: "error",
-            message: `Failed to load forecast (HTTP ${res.status})`,
-          });
+          setForecastStates((prev) => ({
+            ...prev,
+            [country]: { status: "error", message: `Failed to load forecast (HTTP ${res.status})` },
+          }));
         }
       })
       .catch((err) => {
         const message = err instanceof Error ? err.message : "Could not reach server";
-        setForecastState({ status: "error", message });
+        setForecastStates((prev) => ({ ...prev, [country]: { status: "error", message } }));
       });
-  }, []);
+  }, [state.activeCountry, state.isLoading]);
 
   async function handleGenerateForecast(regenerate = false) {
-    setForecastState({ status: "generating" });
+    const country = state.activeCountry;
+    setForecastStates((prev) => ({ ...prev, [country]: { status: "generating" } }));
     try {
-      const res = await fetch("/api/forecast", { method: "POST" });
+      const res = await fetch(`/api/forecast?country=${country}`, { method: "POST" });
       if (!res.ok) {
         let message = `Server error ${res.status}`;
         try {
@@ -327,17 +333,20 @@ export function App() {
         } catch {
           // non-JSON error body — use status code message
         }
-        setForecastState({ status: "error", message });
+        setForecastStates((prev) => ({ ...prev, [country]: { status: "error", message } }));
         return;
       }
       const data = (await res.json()) as ForecastResponse;
-      setForecastState({ status: "loaded", data });
+      setForecastStates((prev) => ({ ...prev, [country]: { status: "loaded", data } }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Network error — is the server running?";
-      setForecastState({
-        status: "error",
-        message: regenerate ? `Regeneration failed: ${message}` : message,
-      });
+      setForecastStates((prev) => ({
+        ...prev,
+        [country]: {
+          status: "error",
+          message: regenerate ? `Regeneration failed: ${message}` : message,
+        },
+      }));
     }
   }
 
@@ -726,7 +735,7 @@ export function App() {
       return (
         <MainPanel
           view="forecast"
-          forecastState={forecastState}
+          forecastState={forecastStates[state.activeCountry] ?? { status: "loading" }}
           onGenerateForecast={handleGenerateForecast}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
           {...commonProps}

@@ -127,7 +127,7 @@ const routes: Record<string, any> = {
           .filter((p) => p.code !== "us")
           .map((p) => clearCountryData(p)),
       );
-      await clearForecastCache();
+      await clearForecastCache(); // no arg = clears all countries
       await clearInsightsCache();
       return Response.json({ success: true });
     },
@@ -393,9 +393,15 @@ const routes: Record<string, any> = {
     return new Response("Method Not Allowed", { status: 405 });
   },
   // Bun's wildcard "/*" conflicts with multi-method route objects, so branch on req.method.
+  // Country is passed as a query param: GET/POST /api/forecast?country=us (defaults to "us")
   "/api/forecast": async (req: Request) => {
+    const url = new URL(req.url);
+    const country = url.searchParams.get("country") || "us";
+    const plugin = SERVER_REGISTRY[country];
+    if (!plugin) return Response.json({ error: "Unknown country" }, { status: 400 });
+
     if (req.method === "GET") {
-      const cached = await getForecastCache();
+      const cached = await getForecastCache(country);
       if (!cached) return new Response("Not found", { status: 404 });
       return Response.json(cached);
     }
@@ -407,25 +413,13 @@ const routes: Record<string, any> = {
       }
 
       try {
-        // Load returns for all registered countries in parallel
-        const plugins = Object.values(SERVER_REGISTRY);
-        const returnsList = await Promise.all(
-          plugins.map((p) => (p.code === "us" ? getReturns() : getCountryReturns(p))),
-        );
-        const allReturns: Record<string, Record<number, unknown>> = {};
-        for (let i = 0; i < plugins.length; i++) {
-          allReturns[plugins[i]!.code] = returnsList[i]!;
-        }
-
-        const activePlugins = plugins.filter(
-          (p) => Object.keys(allReturns[p.code] ?? {}).length > 0,
-        );
-        if (activePlugins.length === 0) {
+        const returns = country === "us" ? await getReturns() : await getCountryReturns(plugin);
+        if (Object.keys(returns).length === 0) {
           return Response.json({ error: "No tax returns on file" }, { status: 400 });
         }
 
-        const forecast = await generateForecast(allReturns, activePlugins, apiKey);
-        await saveForecastCache(forecast);
+        const forecast = await generateForecast({ [country]: returns }, [plugin], apiKey);
+        await saveForecastCache(country, forecast);
         return Response.json(forecast);
       } catch (error) {
         console.error("Forecast error:", error);

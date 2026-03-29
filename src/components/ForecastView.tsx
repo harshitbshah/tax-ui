@@ -1,7 +1,6 @@
 import type { ForecastState } from "../App";
 import { getUsConstants } from "../lib/constants";
-import { formatCurrency, formatPercent } from "../lib/format";
-import type { TaxReturn } from "../lib/schema";
+import { formatAmount, formatPercent } from "../lib/format";
 import { ActionItemsCard } from "./ActionItemsCard";
 import { AssumptionsCard } from "./AssumptionsCard";
 import { BracketBar } from "./BracketBar";
@@ -10,10 +9,12 @@ import { IndiaRegimeCard } from "./IndiaRegimeCard";
 import { RiskFlags } from "./RiskFlags";
 
 interface Props {
-  returns: Record<number, TaxReturn>;
+  returns: Record<number, unknown>;
   forecastState: ForecastState;
   onGenerate: (regenerate?: boolean) => void;
   onToggleChat?: () => void;
+  activeCountry: string;
+  currency: string;
 }
 
 function MetricCard({
@@ -53,7 +54,7 @@ function MetricCard({
   );
 }
 
-function ConstantsStatus({ years, warnOnly = false }: { years: number[]; warnOnly?: boolean }) {
+function UsConstantsStatus({ years, warnOnly = false }: { years: number[]; warnOnly?: boolean }) {
   if (years.length === 0) return null;
   const visibleYears = warnOnly ? years.filter((y) => getUsConstants(y) === null) : years;
   if (visibleYears.length === 0) return null;
@@ -95,13 +96,23 @@ function GeneratingDots() {
   );
 }
 
-export function ForecastView({ returns, forecastState: state, onGenerate, onToggleChat }: Props) {
+export function ForecastView({
+  returns,
+  forecastState: state,
+  onGenerate,
+  onToggleChat,
+  activeCountry,
+  currency,
+}: Props) {
   const yearCount = Object.keys(returns).length;
   const historyYears = Object.keys(returns)
     .map(Number)
     .sort((a, b) => a - b);
   const projectedYear = historyYears.length > 0 ? Math.max(...historyYears) + 1 : null;
   const allForecastYears = projectedYear ? [...historyYears, projectedYear] : historyYears;
+  const isUs = activeCountry === "us";
+
+  const fmt = (v: number, showSign = false) => formatAmount(v, currency, showSign);
 
   if (state.status === "loading") {
     return (
@@ -116,7 +127,7 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-(--color-text-muted)">
         <GeneratingDots />
         <p className="text-sm">Claude is analyzing {yearCount} years of tax history…</p>
-        <ConstantsStatus years={allForecastYears} warnOnly />
+        {isUs && <UsConstantsStatus years={allForecastYears} warnOnly />}
       </div>
     );
   }
@@ -143,7 +154,7 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
           <p className="text-sm font-medium text-(--color-text)">AI Tax Forecast</p>
           <p className="mt-1 max-w-xs text-xs">
             Claude will analyze your {yearCount} years of tax history and project next year&apos;s
-            liability, surface action items, and compare India regimes.
+            liability, surface action items, and flag risks.
           </p>
         </div>
         <button
@@ -178,9 +189,11 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
             <p className="mt-0.5 text-xs text-(--color-text-muted)">
               AI-generated from {yearCount} years of tax history · Powered by Claude Sonnet
             </p>
-            <div className="mt-2">
-              <ConstantsStatus years={[...historyYears, data.projectedYear]} warnOnly />
-            </div>
+            {isUs && (
+              <div className="mt-2">
+                <UsConstantsStatus years={[...historyYears, data.projectedYear]} warnOnly />
+              </div>
+            )}
           </div>
           <button
             onClick={() => onGenerate(true)}
@@ -194,9 +207,9 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
         <div className="grid grid-cols-3 gap-3">
           <MetricCard
             label="Projected Tax Liability"
-            value={formatCurrency(taxLiability.value)}
-            range={`Range: ${formatCurrency(taxLiability.low)} – ${formatCurrency(taxLiability.high)}`}
-            badge={{ text: "Federal + State", color: "neutral" }}
+            value={fmt(taxLiability.value)}
+            range={`Range: ${fmt(taxLiability.low)} – ${fmt(taxLiability.high)}`}
+            badge={isUs ? { text: "Federal + State", color: "neutral" } : undefined}
           />
           <MetricCard
             label="Effective Rate"
@@ -205,14 +218,17 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
           />
           <MetricCard
             label="Estimated Outcome"
-            value={`${outcomeSign}${formatCurrency(estimatedOutcome.value)}`}
-            range={`Range: ${outcomeSign}${formatCurrency(estimatedOutcome.low)} to ${formatCurrency(estimatedOutcome.high)}`}
+            value={`${outcomeSign}${fmt(estimatedOutcome.value)}`}
+            range={`Range: ${outcomeSign}${fmt(estimatedOutcome.low)} to ${fmt(estimatedOutcome.high)}`}
             badge={outcomeBadge}
           />
         </div>
 
         {/* Bracket bar — US filers only */}
         {data.bracket && <BracketBar {...data.bracket} />}
+
+        {/* India regime — shown prominently when viewing India forecast */}
+        {data.india && <IndiaRegimeCard india={data.india} />}
 
         {/* Assumptions + Action items */}
         <div className="grid grid-cols-2 gap-3">
@@ -222,9 +238,6 @@ export function ForecastView({ returns, forecastState: state, onGenerate, onTogg
 
         {/* Risk flags */}
         {data.riskFlags.length > 0 && <RiskFlags riskFlags={data.riskFlags} />}
-
-        {/* India regime (conditional) */}
-        {data.india && <IndiaRegimeCard india={data.india} />}
 
         {/* Chat strip */}
         <ForecastChatStrip onOpenChat={onToggleChat ?? (() => {})} />

@@ -147,10 +147,12 @@ export function MainPanel(props: Props) {
         </div>
       ) : props.view === "forecast" ? (
         <ForecastView
-          returns={props.usReturns}
+          returns={props.activeReturns}
           forecastState={props.forecastState}
           onGenerate={props.onGenerateForecast}
           onToggleChat={props.onToggleChat}
+          activeCountry={props.activeCountry}
+          currency={plugin?.currency ?? "$"}
         />
       ) : null}
     </div>
