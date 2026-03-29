@@ -32,7 +32,16 @@ export type ForecastResponse = {
     estimatedSaving: string;
     sourceYear?: number;
     timing?: string;
-    category: "retirement" | "capital_gains" | "india" | "deductions" | "withholding";
+    // US: retirement, withholding. India: investments, regime_choice, advance_tax.
+    // capital_gains and deductions are common to both.
+    category:
+      | "retirement"
+      | "capital_gains"
+      | "deductions"
+      | "withholding"
+      | "investments"
+      | "regime_choice"
+      | "advance_tax";
   }>;
 
   riskFlags: Array<{
@@ -70,6 +79,17 @@ export function buildForecastPrompt(
   const allYears = pluginYears.flat();
   const projectedYear = allYears.length > 0 ? Math.max(...allYears) + 1 : new Date().getFullYear();
 
+  const hasUs = pluginsWithData.some((p) => p.code === "us");
+  const primaryPlugin = pluginsWithData[0]!;
+  const primaryProjected = Math.max(...pluginYears[0]!) + 1;
+  const currencyExample = primaryPlugin.currency === "₹" ? "₹28,000" : "$1,200";
+  const valueExample = primaryPlugin.currency === "₹" ? "+5% or ₹12,00,000" : "+5% or $280,000";
+
+  // Action item categories are country-specific to avoid Claude inferring US concepts for India
+  const actionCategories = hasUs
+    ? `"retirement" | "capital_gains" | "deductions" | "withholding"`
+    : `"investments" | "capital_gains" | "deductions" | "regime_choice" | "advance_tax"`;
+
   // Build JSON schema for Claude — core fields + per-country extensions
   const extensionSnippets = pluginsWithData
     .map((p) => p.forecast?.schemaSnippet(projectedYear))
@@ -86,7 +106,7 @@ ${extensionSnippets ? extensionSnippets + ",\n" : ""}  "assumptions": [
     {
       "icon": string (single emoji),
       "label": string (short, e.g. "Salary growth"),
-      "value": string (e.g. "+5%" or "$280,000"),
+      "value": string (e.g. "${valueExample}"),
       "reasoning": string (1–2 sentences explaining why),
       "confidence": "high" | "medium" | "low"
     }
@@ -95,10 +115,10 @@ ${extensionSnippets ? extensionSnippets + ",\n" : ""}  "assumptions": [
     {
       "title": string,
       "description": string,
-      "estimatedSaving": string (e.g. "$1,200" or "₹28,000"),
+      "estimatedSaving": string (e.g. "${currencyExample}"),
       "sourceYear": number (optional — year this insight was derived from),
-      "timing": string (optional — e.g. "Before Dec 31" or "Q3"),
-      "category": "retirement" | "capital_gains" | "india" | "deductions" | "withholding"
+      "timing": string (optional — e.g. "Before Mar 31" or "Q3"),
+      "category": ${actionCategories}
     }
   ],
   "riskFlags": [
@@ -133,10 +153,6 @@ ${extensionSnippets ? extensionSnippets + ",\n" : ""}  "assumptions": [
   }
 
   // Instructions
-  const primaryPlugin = pluginsWithData[0]!;
-  const primaryProjected = Math.max(...pluginYears[0]!) + 1;
-  const hasUs = pluginsWithData.some((p) => p.code === "us");
-
   parts.push(
     "",
     "## Instructions",
@@ -155,9 +171,12 @@ ${extensionSnippets ? extensionSnippets + ",\n" : ""}  "assumptions": [
   parts.push(
     hasUs
       ? "- taxLiability = projected combined US federal + state tax owed (before withholding)"
-      : "- taxLiability = projected total tax liability in local currency",
+      : "- taxLiability = projected total tax liability in local currency (INR)",
     "- estimatedOutcome = refund (positive value) or owed (negative value) at filing time, based on projected withholding/advance-tax trends",
     !hasUs ? "- bracket: omit this field entirely — there are no US returns" : "",
+    !hasUs
+      ? "- Do NOT mention 401k, IRA, FICA, W-2 withholding, federal/state brackets, or any US-specific tax concepts. All advice must be India-specific."
+      : "",
     "- Return ONLY valid JSON. No markdown, no explanation outside the JSON.",
     "",
     "## Required output schema",
@@ -209,9 +228,11 @@ export function parseForecastResponse(text: string): ForecastResponse {
   const validCategory = new Set([
     "retirement",
     "capital_gains",
-    "india",
     "deductions",
     "withholding",
+    "investments",
+    "regime_choice",
+    "advance_tax",
   ]);
   const actionItems = (raw.actionItems as Array<Record<string, unknown>>).map((item) => ({
     title: String(item.title ?? ""),

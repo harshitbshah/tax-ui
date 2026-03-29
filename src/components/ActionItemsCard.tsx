@@ -3,11 +3,16 @@ import type { ForecastResponse } from "../lib/forecaster";
 type ActionItem = ForecastResponse["actionItems"][number];
 
 const CATEGORY_ICONS: Record<ActionItem["category"], string> = {
+  // US
   retirement: "🏦",
-  capital_gains: "📉",
-  india: "🇮🇳",
-  deductions: "🏠",
   withholding: "💼",
+  // India
+  investments: "📊",
+  regime_choice: "⚖️",
+  advance_tax: "📅",
+  // Common
+  capital_gains: "📉",
+  deductions: "🏠",
 };
 
 export function ActionItemsCard({ actionItems }: { actionItems: ActionItem[] }) {

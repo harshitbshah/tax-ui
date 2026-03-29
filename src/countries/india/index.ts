@@ -55,6 +55,6 @@ export const indiaServerPlugin: CountryServerPlugin = {
   }`,
     parseExtension: (raw) => (raw.india ? { india: raw.india } : {}),
     promptInstruction:
-      "For India: compare old vs new regime for the upcoming FY based on recent ITR history. Recommend the better one. Return oldRegimeTax and newRegimeTax as plain integers in INR (no commas, no ₹ symbol).",
+      "For India: compare old vs new regime for the upcoming FY and return the 'india' section. Action items should focus on India-specific strategies: 80C investments (ELSS, PPF, NPS top-up), 80D health insurance, STCG/LTCG harvesting under Indian rates, advance tax installments, HRA optimization, Section 24 home loan interest. Return all tax amounts as plain integers in INR (no commas, no ₹ symbol).",
   },
 };
