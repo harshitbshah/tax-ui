@@ -16,7 +16,6 @@ interface Props {
   onSwitchCountry: (country: string) => void;
   onOpenStart: () => void;
   onOpenReset: () => void;
-  onUploadIndia?: () => void;
   onDeleteYear?: (year: string) => void;
   isDemo: boolean;
   hasUserData: boolean;
@@ -70,7 +69,6 @@ export function Sidebar({
   onSwitchCountry,
   onOpenStart,
   onOpenReset,
-  onUploadIndia,
   onDeleteYear: _onDeleteYear,
   isDemo,
   hasUserData,
@@ -207,14 +205,12 @@ export function Sidebar({
         >
           <MenuItem onClick={onOpenStart}>
             <FilePlusIcon />
-            {hasUserData ? "Add return" : "Get started"}
+            {hasUserData
+              ? activeCountry === "india"
+                ? "Import India ITR"
+                : "Add return"
+              : "Get started"}
           </MenuItem>
-          {!isDemo && hasStoredKey && onUploadIndia && (
-            <MenuItem onClick={onUploadIndia}>
-              <FilePlusIcon />
-              Import India ITR
-            </MenuItem>
-          )}
           {!isDemo && (hasUserData || hasStoredKey) && (
             <MenuItem
               onClick={onOpenReset}

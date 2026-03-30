@@ -39,6 +39,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .canada-tax-returns.json
 .insights-cache.json
 .forecast-cache.json
+.forecast-profile.json
 .api-key
 
 # Claude Code local settings
@@ -61,3 +62,7 @@ electron/node_modules/
 .test-results.json
 .test-data/
 resources/server-test/
+
+# Playwright
+test-results/
+playwright-report/

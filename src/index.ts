@@ -12,6 +12,7 @@ import {
   saveCountryReturn,
 } from "./lib/country-storage";
 import { clearForecastCache, getForecastCache, saveForecastCache } from "./lib/forecast-cache";
+import { getForecastProfile, saveForecastProfile } from "./lib/forecast-profile";
 import { generateForecast } from "./lib/forecaster";
 import { generateInsights } from "./lib/insights";
 import { clearInsightsCache, getInsightsCache, saveInsightsCache } from "./lib/insights-cache";
@@ -392,6 +393,21 @@ const routes: Record<string, any> = {
 
     return new Response("Method Not Allowed", { status: 405 });
   },
+  // Country is passed as a query param: GET/POST /api/forecast-profile?country=us
+  "/api/forecast-profile": async (req: Request) => {
+    const url = new URL(req.url);
+    const country = url.searchParams.get("country") || "us";
+    if (req.method === "GET") {
+      const profile = await getForecastProfile(country);
+      return Response.json(profile ?? {});
+    }
+    if (req.method === "POST") {
+      const body = (await req.json()) as Record<string, unknown>;
+      await saveForecastProfile(country, body);
+      return Response.json({ success: true });
+    }
+    return new Response("Method Not Allowed", { status: 405 });
+  },
   // Bun's wildcard "/*" conflicts with multi-method route objects, so branch on req.method.
   // Country is passed as a query param: GET/POST /api/forecast?country=us (defaults to "us")
   "/api/forecast": async (req: Request) => {
@@ -418,7 +434,13 @@ const routes: Record<string, any> = {
           return Response.json({ error: "No tax returns on file" }, { status: 400 });
         }
 
-        const forecast = await generateForecast({ [country]: returns }, [plugin], apiKey);
+        const profile = await getForecastProfile(country);
+        const forecast = await generateForecast(
+          { [country]: returns },
+          [plugin],
+          apiKey,
+          profile ?? undefined,
+        );
         await saveForecastCache(country, forecast);
         return Response.json(forecast);
       } catch (error) {

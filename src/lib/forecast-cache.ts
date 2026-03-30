@@ -7,7 +7,7 @@ const CACHE_FILE = path.join(DATA_DIR, ".forecast-cache.json");
 
 // Bump this string whenever the forecast prompt logic changes significantly.
 // A mismatch causes all cached forecasts to be treated as stale.
-export const FORECAST_PROMPT_VERSION = "3";
+export const FORECAST_PROMPT_VERSION = "4";
 
 async function readCache(): Promise<Record<string, ForecastResponse>> {
   const file = Bun.file(CACHE_FILE);

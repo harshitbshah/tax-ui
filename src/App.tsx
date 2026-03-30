@@ -16,6 +16,7 @@ import { CLIENT_REGISTRY } from "./countries/views";
 import { sampleReturns } from "./data/sampleData";
 import { isElectron } from "./lib/electron";
 import { getDevDemoOverride, isHostedEnvironment, resolveDemoMode } from "./lib/env";
+import type { ForecastProfile } from "./lib/forecast-profile-schema";
 import type { ForecastResponse } from "./lib/forecaster";
 import {
   buildNavItems,
@@ -193,6 +194,7 @@ export function App() {
     isDev: false,
   });
   const [forecastStates, setForecastStates] = useState<Record<string, ForecastState>>({});
+  const [forecastProfiles, setForecastProfiles] = useState<Record<string, ForecastProfile>>({});
   const [devDemoOverride, setDevDemoOverride] = useState<boolean | null>(getDevDemoOverride);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -294,6 +296,23 @@ export function App() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // Fetch the forecast profile for a country the first time it's needed
+  useEffect(() => {
+    if (state.isLoading) return;
+    const country = state.activeCountry;
+    if (forecastProfiles[country] !== undefined) return; // already fetched
+    fetch(`/api/forecast-profile?country=${country}`)
+      .then(async (res) => {
+        if (res.ok) {
+          const data = (await res.json()) as ForecastProfile;
+          setForecastProfiles((prev) => ({ ...prev, [country]: data }));
+        }
+      })
+      .catch(() => {
+        // non-fatal — profile is optional
+      });
+  }, [state.activeCountry, state.isLoading]);
+
   // Fetch the forecast for a country the first time it's needed (on country switch or after load)
   useEffect(() => {
     if (state.isLoading) return;
@@ -348,6 +367,16 @@ export function App() {
         },
       }));
     }
+  }
+
+  async function handleSaveProfile(profile: ForecastProfile) {
+    const country = state.activeCountry;
+    await fetch(`/api/forecast-profile?country=${country}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+    setForecastProfiles((prev) => ({ ...prev, [country]: profile }));
   }
 
   useEffect(() => {
@@ -610,7 +639,7 @@ export function App() {
         body: JSON.stringify({
           prompt,
           history: chatMessages,
-          returns: effectiveReturns,
+          returns: activeReturns,
           selectedYear: state.selectedYear,
         }),
       });
@@ -636,7 +665,7 @@ export function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           history: [...chatMessages, userMessage, assistantMessage],
-          returns: effectiveReturns,
+          returns: activeReturns,
         }),
       })
         .then((res) => res.json())
@@ -738,6 +767,8 @@ export function App() {
           forecastState={forecastStates[state.activeCountry] ?? { status: "loading" }}
           onGenerateForecast={handleGenerateForecast}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          forecastProfile={forecastProfiles[state.activeCountry] ?? null}
+          onSaveProfile={handleSaveProfile}
           {...commonProps}
         />
       );
@@ -859,9 +890,14 @@ export function App() {
         activeCountries={activeCountries}
         onSelect={handleSelect}
         onSwitchCountry={handleSwitchCountry}
-        onOpenStart={() => setOpenModal("onboarding")}
+        onOpenStart={() => {
+          if (state.activeCountry === "india") {
+            indiaUploadRef.current?.click();
+          } else {
+            setOpenModal("onboarding");
+          }
+        }}
         onOpenReset={() => setOpenModal("reset")}
-        onUploadIndia={() => indiaUploadRef.current?.click()}
         onDeleteYear={handleDelete}
         isDemo={effectiveIsDemo}
         hasUserData={state.hasUserData}

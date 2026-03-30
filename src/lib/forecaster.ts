@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 import type { CountryServerPlugin } from "./country-registry";
+import type { ForecastProfile } from "./forecast-profile";
 
 export type ForecastResponse = {
   projectedYear: number;
@@ -60,9 +61,119 @@ export type ForecastResponse = {
   generatedAt: string;
 };
 
+function fmt(n: number): string {
+  return `$${n.toLocaleString("en-US")}`;
+}
+
+function buildProfileSection(profile: ForecastProfile, projectedYear: number): string[] {
+  const lines: string[] = [
+    `## Known ${projectedYear} Inputs (provided by user — use these exactly, do not re-estimate)`,
+  ];
+
+  // Income
+  const income: string[] = [];
+  if (profile.salary1 != null) income.push(`- Your base salary: ${fmt(profile.salary1)}`);
+  if (profile.salary2 != null) income.push(`- Spouse base salary: ${fmt(profile.salary2)}`);
+  if (profile.bonusLow1 != null || profile.bonusHigh1 != null) {
+    const lo = profile.bonusLow1 ?? 0;
+    const hi = profile.bonusHigh1 ?? lo;
+    income.push(`- Your expected bonus: ${lo === hi ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`}`);
+  }
+  if (profile.bonusLow2 != null || profile.bonusHigh2 != null) {
+    const lo = profile.bonusLow2 ?? 0;
+    const hi = profile.bonusHigh2 ?? lo;
+    income.push(`- Spouse expected bonus: ${lo === hi ? fmt(lo) : `${fmt(lo)} – ${fmt(hi)}`}`);
+  }
+  if (profile.rsu != null) income.push(`- RSU / equity vesting: ${fmt(profile.rsu)}`);
+  if (income.length > 0) lines.push("", "Income:", ...income);
+
+  // Retirement
+  const limit401k = projectedYear >= 2025 ? 23500 : 23000;
+  const retirement: string[] = [];
+  if (profile.k401_1 != null) {
+    const maxed = profile.k401_1 >= limit401k;
+    retirement.push(
+      `- Your traditional 401(k): ${fmt(profile.k401_1)}/year${maxed ? " [maxed]" : ""}`,
+    );
+  }
+  if (profile.k401_2 != null) {
+    const maxed = profile.k401_2 >= limit401k;
+    retirement.push(
+      `- Spouse traditional 401(k): ${fmt(profile.k401_2)}/year${maxed ? " [maxed]" : ""}`,
+    );
+  }
+  if (profile.backdoorRoth != null) {
+    const desc =
+      profile.backdoorRoth === "both"
+        ? "done for both spouses ($7,000 each)"
+        : profile.backdoorRoth === "one"
+          ? "done for one spouse ($7,000)"
+          : "not done this year";
+    retirement.push(`- Backdoor Roth IRA: ${desc}`);
+  }
+  if (retirement.length > 0) lines.push("", "Retirement:", ...retirement);
+
+  // Withholding
+  if (profile.ytdWithholding != null) {
+    const month = profile.ytdMonth ?? 12;
+    const annualized = Math.round((profile.ytdWithholding / month) * 12);
+    lines.push(
+      "",
+      "Withholding:",
+      `- YTD federal withholding as of month ${month}: ${fmt(profile.ytdWithholding)}` +
+        (month < 12 ? ` (annualized pace: ~${fmt(annualized)}/year)` : " (full year)"),
+    );
+  }
+
+  // Capital events
+  if (profile.capitalGains != null) {
+    const sign = profile.capitalGains >= 0 ? "+" : "";
+    lines.push(
+      "",
+      "Capital events:",
+      `- Expected capital gain/loss: ${sign}${fmt(Math.abs(profile.capitalGains))}${profile.capitalGains < 0 ? " loss" : " gain"}`,
+    );
+  }
+
+  // Constraints for Claude
+  const constraints: string[] = [
+    "- Use the above figures as the basis for your income projection — do NOT re-estimate anything listed",
+    "- Derive taxable income from: (salary1 + salary2 + bonuses + RSU) − (401k contributions) − standard deduction",
+  ];
+  const k401Maxed =
+    (profile.k401_1 != null && profile.k401_1 >= limit401k) ||
+    (profile.k401_2 != null && profile.k401_2 >= limit401k);
+  if (k401Maxed)
+    constraints.push("- Do NOT suggest maxing 401(k) — it is already maxed per the inputs above");
+  else if (profile.k401_1 != null || profile.k401_2 != null)
+    constraints.push("- 401(k) contribution amounts are known — do not suggest a different amount");
+  if (profile.backdoorRoth === "both" || profile.backdoorRoth === "one")
+    constraints.push("- Do NOT suggest backdoor Roth IRA — it is already being done");
+  if (profile.ytdWithholding != null)
+    constraints.push(
+      "- Use the provided withholding figure (not historical trend) for the estimated outcome calculation",
+    );
+  const hasBonusRange =
+    (profile.bonusLow1 != null &&
+      profile.bonusHigh1 != null &&
+      profile.bonusLow1 !== profile.bonusHigh1) ||
+    (profile.bonusLow2 != null &&
+      profile.bonusHigh2 != null &&
+      profile.bonusLow2 !== profile.bonusHigh2);
+  if (hasBonusRange)
+    constraints.push(
+      "- Use the bonus range to compute low/high bounds on taxLiability and estimatedOutcome",
+    );
+  constraints.push('- Mark any assumption derived from user-provided inputs as confidence: "high"');
+
+  lines.push("", "IMPORTANT:", ...constraints);
+  return lines;
+}
+
 export function buildForecastPrompt(
   allReturns: Record<string, Record<number, unknown>>,
   activePlugins: CountryServerPlugin[],
+  profile?: ForecastProfile,
 ): string {
   const pluginsWithData = activePlugins.filter(
     (p) => Object.keys(allReturns[p.code] ?? {}).length > 0,
@@ -150,6 +261,12 @@ ${extensionSnippets ? extensionSnippets + ",\n" : ""}  "assumptions": [
         `No verified tax constants available for ${plugin.yearLabel(pluginProjectedYear)} in this app yet. Use your best knowledge but flag any figures as unverified in your assumptions.`,
       );
     }
+  }
+
+  // Profile section (US only — India inputs differ entirely)
+  if (profile && hasUs) {
+    const profileLines = buildProfileSection(profile, projectedYear);
+    parts.push(...profileLines);
   }
 
   // Instructions
@@ -310,9 +427,10 @@ export async function generateForecast(
   allReturns: Record<string, Record<number, unknown>>,
   activePlugins: CountryServerPlugin[],
   apiKey: string,
+  profile?: ForecastProfile,
 ): Promise<ForecastResponse> {
   const client = new Anthropic({ apiKey });
-  const prompt = buildForecastPrompt(allReturns, activePlugins);
+  const prompt = buildForecastPrompt(allReturns, activePlugins, profile);
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",

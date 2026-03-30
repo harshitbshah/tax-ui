@@ -132,6 +132,14 @@ Generation runs in the background — you can navigate to other views while Clau
 
 ![AI forecast view](docs/screenshots/forecast.png)
 
+#### 2025 Inputs panel
+
+Click **+ Add inputs** (or **Edit inputs**) in the confidence banner to open the inputs panel. Fill in what you know — salary, bonuses, RSUs, 401(k) contributions, YTD withholding, capital events. Each field you fill replaces a Claude assumption with a real number, improving the accuracy of the projected outcome and reducing the chance of incorrect action items (e.g. "maximize your 401k" when you already have).
+
+The banner shows how many of the 7 input groups are filled and a confidence label (Low → High).
+
+![Forecast inputs panel](docs/screenshots/forecast-profile.png)
+
 ---
 
 ### Chat

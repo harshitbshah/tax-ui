@@ -13,6 +13,8 @@
     "electron:build": "bun run build:server && cd electron && npm run build",
     "electron:pack": "bun run build && bun run build:server && cd electron && npm run pack",
     "electron:dist": "bun run build && bun run build:server && cd electron && npm run dist",
+    "test:e2e": "playwright test",
+    "screenshots": "playwright test tests/e2e/screenshots.pw.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{ts,json}\"",
@@ -40,6 +42,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",

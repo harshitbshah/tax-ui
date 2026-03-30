@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ForecastState } from "../App";
 import { CLIENT_REGISTRY } from "../countries/views";
 import { cn } from "../lib/cn";
+import type { ForecastProfile } from "../lib/forecast-profile-schema";
 import type { IndianTaxReturn, PendingUpload, TaxReturn } from "../lib/schema";
 import { ForecastView } from "./ForecastView";
 import { InsightsPanel } from "./InsightsPanel";
@@ -31,6 +32,8 @@ interface ForecastProps extends CommonProps {
   forecastState: ForecastState;
   onGenerateForecast: (regenerate?: boolean) => Promise<void>;
   onToggleChat?: () => void;
+  forecastProfile: ForecastProfile | null;
+  onSaveProfile: (profile: ForecastProfile) => Promise<void>;
 }
 
 interface LoadingProps extends CommonProps {
@@ -153,6 +156,8 @@ export function MainPanel(props: Props) {
           onToggleChat={props.onToggleChat}
           activeCountry={props.activeCountry}
           currency={plugin?.currency ?? "$"}
+          forecastProfile={props.forecastProfile}
+          onSaveProfile={props.onSaveProfile}
         />
       ) : null}
     </div>
