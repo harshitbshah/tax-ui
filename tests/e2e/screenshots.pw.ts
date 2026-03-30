@@ -35,32 +35,11 @@ test.describe("Screenshot capture", () => {
   });
 
   test("forecast profile panel open", async ({ page }) => {
+    // Force chat closed via localStorage before the app boots
     await page.goto("/");
+    await page.evaluate(() => localStorage.setItem("tax-chat-open", "false"));
+    await page.reload();
     await page.waitForLoadState("networkidle");
-
-    // Close chat if open
-    const chatClose = page.getByRole("button", { name: /close/i }).filter({ hasText: "" }).first();
-    const isChatCloseVisible = await page
-      .locator("button")
-      .filter({ hasText: /^✕$|^×$|^Close$/ })
-      .first()
-      .isVisible()
-      .catch(() => false);
-    if (isChatCloseVisible) {
-      await page
-        .locator("button")
-        .filter({ hasText: /^✕$|^×$|^Close$/ })
-        .first()
-        .click();
-      await page.waitForTimeout(300);
-    }
-    // Also try clicking the Chat toggle if the chat panel is open
-    const chatPanel = page.locator("text=Ask anything").first();
-    const isChatOpen = await chatPanel.isVisible().catch(() => false);
-    if (isChatOpen) {
-      await page.locator("aside").getByText("Chat").click();
-      await page.waitForTimeout(300);
-    }
 
     await page.getByText("Forecast", { exact: true }).first().click();
     await page.waitForTimeout(800);
