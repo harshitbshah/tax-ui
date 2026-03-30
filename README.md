@@ -41,7 +41,7 @@ curl -fsSL https://bun.sh/install | bash
 ### 2. Clone and install
 
 ```bash
-git clone https://github.com/harshitbshah/tax-ui
+git clone https://github.com/harshitbshah/taxlens
 cd tax-ui
 bun install
 ```
