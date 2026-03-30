@@ -83,6 +83,7 @@ ${activeContext}
 Answer questions about the user's income, taxes, deductions, credits, and tax rates based on this data.`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const routes: Record<string, any> = {
   "/api/config": {
     GET: () => {
@@ -239,7 +240,7 @@ const routes: Record<string, any> = {
         return Response.json({ suggestions: [] });
       }
 
-      const returns =
+      const _returns =
         clientReturns && Object.keys(clientReturns).length > 0 ? clientReturns : await getReturns();
 
       const client = new Anthropic({ apiKey });

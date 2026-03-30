@@ -1,6 +1,6 @@
 import "./index.css";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Chat, type ChatMessage } from "./components/Chat";
 import { DemoDialog } from "./components/DemoDialog";
@@ -108,10 +108,10 @@ function useElectronUpdater(devOverride: UpdateStatus | null) {
 
 const CHAT_OPEN_KEY = "tax-chat-open";
 const CHAT_HISTORY_KEY = "tax-chat-history";
-const DEMO_RESPONSE = `This is a demo with sample data. To chat about your own tax returns, clone and run [Tax UI](https://github.com/brianlovin/tax-ui) locally:
+const DEMO_RESPONSE = `This is a demo with sample data. To chat about your own tax returns, clone and run [TaxLens](https://github.com/harshitbshah/taxlens) locally:
 \`\`\`
-git clone https://github.com/brianlovin/tax-ui
-cd tax-ui
+git clone https://github.com/harshitbshah/taxlens
+cd taxlens
 bun install
 bun run dev
 \`\`\`
@@ -198,7 +198,7 @@ export function App() {
   const [devDemoOverride, setDevDemoOverride] = useState<boolean | null>(getDevDemoOverride);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [_isUploading, setIsUploading] = useState(false);
   const [configureKeyOnly, setConfigureKeyOnly] = useState(false);
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(() => {
@@ -229,7 +229,10 @@ export function App() {
   const effectiveIsDemo = resolveDemoMode(devDemoOverride, state.isDemo);
   const shouldShowChat = !effectiveIsDemo || !isMobile;
   const effectiveReturns = effectiveIsDemo ? sampleReturns : state.returns;
-  const effectiveCountryReturns = effectiveIsDemo ? {} : state.countryReturns;
+  const effectiveCountryReturns = useMemo(
+    () => (effectiveIsDemo ? {} : state.countryReturns),
+    [effectiveIsDemo, state.countryReturns],
+  );
   // Typed alias for components that still expect Record<number, IndianTaxReturn>
   const effectiveIndiaReturns = (effectiveCountryReturns["india"] ?? {}) as Record<
     number,
@@ -244,17 +247,24 @@ export function App() {
   ];
 
   const activePlugin = CLIENT_REGISTRY[state.activeCountry];
-  const activeReturns: Record<number, unknown> =
-    state.activeCountry === "us"
-      ? effectiveReturns
-      : (effectiveCountryReturns[state.activeCountry] ?? {});
+  const activeReturns = useMemo<Record<number, unknown>>(
+    () =>
+      state.activeCountry === "us"
+        ? effectiveReturns
+        : (effectiveCountryReturns[state.activeCountry] ?? {}),
+    [state.activeCountry, effectiveReturns, effectiveCountryReturns],
+  );
 
-  const navItems = activePlugin
-    ? buildNavItems(activeReturns, {
-        yearLabel: activePlugin.yearLabel,
-        summaryLabel: activePlugin.summaryLabel,
-      })
-    : [];
+  const navItems = useMemo(
+    () =>
+      activePlugin
+        ? buildNavItems(activeReturns, {
+            yearLabel: activePlugin.yearLabel,
+            summaryLabel: activePlugin.summaryLabel,
+          })
+        : [],
+    [activePlugin, activeReturns],
+  );
 
   useEffect(() => {
     fetchInitialState()
@@ -311,7 +321,7 @@ export function App() {
       .catch(() => {
         // non-fatal — profile is optional
       });
-  }, [state.activeCountry, state.isLoading]);
+  }, [state.activeCountry, state.isLoading, forecastProfiles]);
 
   // Fetch the forecast for a country the first time it's needed (on country switch or after load)
   useEffect(() => {
@@ -337,7 +347,7 @@ export function App() {
         const message = err instanceof Error ? err.message : "Could not reach server";
         setForecastStates((prev) => ({ ...prev, [country]: { status: "error", message } }));
       });
-  }, [state.activeCountry, state.isLoading]);
+  }, [state.activeCountry, state.isLoading, forecastStates]);
 
   async function handleGenerateForecast(regenerate = false) {
     const country = state.activeCountry;
@@ -392,6 +402,8 @@ export function App() {
       submitChatMessage(pendingAutoMessage);
       setPendingAutoMessage(null);
     }
+    // submitChatMessage is recreated each render; including it would cause an infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAutoMessage, isChatOpen, isChatLoading]);
 
   const handleKeyDown = useCallback(
@@ -444,7 +456,7 @@ export function App() {
     return taxReturn;
   }
 
-  async function handleUploadFromSidebar(files: File[]) {
+  async function _handleUploadFromSidebar(files: File[]) {
     if (files.length === 0) return;
 
     if (!state.hasStoredKey) {

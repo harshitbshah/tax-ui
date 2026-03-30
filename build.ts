@@ -36,6 +36,7 @@ Example:
 const toCamelCase = (str: string): string =>
   str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const parseValue = (value: string): any => {
   if (value === "true") return true;
   if (value === "false") return false;

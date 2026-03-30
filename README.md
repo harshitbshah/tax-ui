@@ -42,7 +42,7 @@ curl -fsSL https://bun.sh/install | bash
 
 ```bash
 git clone https://github.com/harshitbshah/taxlens
-cd tax-ui
+cd taxlens
 bun install
 ```
 
@@ -52,7 +52,49 @@ bun install
 bun run dev
 ```
 
-Open [localhost:3005](http://localhost:3005). On first launch, the app will prompt you to enter your Anthropic API key — get one from [console.anthropic.com](https://console.anthropic.com/settings/keys). Alternatively, add it to a `.env` file before starting:
+Open [localhost:3005](http://localhost:3005).
+
+#### Shell alias (optional)
+
+For a more convenient local workflow, add the `taxlens` alias to your shell:
+
+```bash
+# Add to ~/.bash_aliases or ~/.bashrc
+_taxlens() {
+  case "$1" in
+    start)
+      cd ~/path/to/taxlens && nohup bun --hot src/index.ts --port 3005 > /tmp/taxlens.log 2>&1 &
+      echo $! > /tmp/taxlens.pid
+      disown $!
+      echo "taxlens started (PID $!). Open http://localhost:3005"
+      ;;
+    stop)
+      if [ -f /tmp/taxlens.pid ]; then
+        kill "$(cat /tmp/taxlens.pid)" 2>/dev/null
+        rm /tmp/taxlens.pid
+      else
+        pkill -f "bun --hot src/index.ts --port 3005" 2>/dev/null
+      fi
+      echo "taxlens stopped"
+      ;;
+    logs)
+      tail -f /tmp/taxlens.log
+      ;;
+    *)
+      echo "Usage: taxlens start | stop | logs"
+      ;;
+  esac
+}
+alias taxlens='_taxlens'
+```
+
+Replace `~/path/to/taxlens` with the actual path where you cloned the repo, then reload your shell (`source ~/.bash_aliases`) and use:
+
+```bash
+taxlens start   # start in background
+taxlens stop    # stop the server
+taxlens logs    # tail the server log
+``` On first launch, the app will prompt you to enter your Anthropic API key — get one from [console.anthropic.com](https://console.anthropic.com/settings/keys). Alternatively, add it to a `.env` file before starting:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
