@@ -1,4 +1,4 @@
-<img width="1280" height="640" alt="TaxLens — summary view" src="docs/screenshots/hero.png" />
+<img width="1280" height="960" alt="TaxLens — summary view" src="docs/screenshots/hero.png" />
 
 # TaxLens
 
@@ -12,8 +12,6 @@ One return tells you little. Several years of returns tell you your actual effec
 
 TaxLens is that analysis, built from your actual data. Drop in your PDFs — US 1040s, India ITRs, or both. Claude parses them, reasons over your full history, and surfaces what you could have done differently and what to do before this year closes. Everything runs locally. No accounts, no cloud, no subscription.
 
-Forked from [brianlovin/tax-ui](https://github.com/brianlovin/tax-ui).
-
 ---
 
 ## Features
@@ -24,7 +22,8 @@ Forked from [brianlovin/tax-ui](https://github.com/brianlovin/tax-ui).
 - **Tax bracket visualizer** — color-coded stacked bar showing exactly where taxable income lands across each bracket, per-bracket income and tax, headroom to the next bracket (US)
 - **What-if simulator** — sliders for 401(k) top-up, IRA, deductions, and capital gains; bracket bar updates live with a marker at your original position (US)
 - **Retroactive insights** — per-year "what could you have done differently" analysis powered by Claude: bracket optimization, capital gains harvesting, deduction opportunities, country-specific regime comparisons
-- **AI Forecast** — Claude reasons over your full tax history across all countries to project next year's liability, surface action items, and flag risks — no manual input
+- **AI Forecast** — Claude reasons over your full tax history across all countries to project next year's liability, surface action items, and flag risks — no manual input required
+- **Forecast inputs panel** — optionally fill in what you know for the current year (salary, bonuses, retirement contributions, YTD withholding, capital events); each field replaces a Claude assumption with a real number and raises the confidence of the projection
 - **Verified tax constants** — bracket thresholds, deduction limits, and contribution caps hardcoded from authoritative sources and injected into every prompt so Claude uses exact figures rather than training-data estimates. Currently included: US (IRS) 2018–2026, India (Income Tax India) FY 2018–2025.
 - **Chat with Claude** — year-aware conversation with your full tax history as context; ask what-ifs from any view
 - **Country toggle** — switch between countries in the sidebar; appears automatically when you have data for more than one country
@@ -67,13 +66,13 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 **US (1040):** Upload PDFs directly in the browser — drag-and-drop or the file picker. One PDF per tax year. The server parses it with Claude Sonnet and stores the result locally.
 
-**Other countries (e.g. India ITR):** Each country plugin defines its own upload trigger. India returns can be uploaded via the sidebar menu, or via the CLI script for bulk import:
+**Other countries:** Each country plugin defines its own upload trigger, accessible from the sidebar menu. For India ITRs, a CLI script is also available for bulk import:
 
 ```bash
 ANTHROPIC_API_KEY=sk-... bun run scripts/import-india.ts path/to/itr.pdf
 ```
 
-Supports ITR-1 (Sahaj) and ITR-2, including the Java-serialized wrapper format from the Indian IT portal.
+India supports ITR-1 (Sahaj) and ITR-2, including the Java-serialized wrapper format from the Indian IT portal. To add support for another country, see [docs/ADDING_COUNTRY.md](docs/ADDING_COUNTRY.md).
 
 ---
 
@@ -140,7 +139,7 @@ Generation runs in the background — you can navigate to other views while Clau
 
 ![AI forecast view](docs/screenshots/forecast.png)
 
-#### 2025 Inputs panel
+#### Inputs panel
 
 Click **+ Add inputs** (or **Edit inputs**) in the confidence banner to open the inputs panel. Fill in what you know — salary, bonuses, RSUs, 401(k) contributions, YTD withholding, capital events. Each field you fill replaces a Claude assumption with a real number, improving the accuracy of the projected outcome and reducing the chance of incorrect action items (e.g. "maximize your 401k" when you already have).
 
@@ -169,7 +168,7 @@ TaxLens hardcodes tax constants from authoritative government sources and inject
 
 Currently included:
 
-- **US (IRS):** bracket thresholds, standard deductions, LTCG rates, and 401(k)/IRA contribution limits for **2018–2026** (2025 reflects OBBBA amendments; 2026 LTCG pending)
+- **US (IRS):** bracket thresholds, standard deductions, LTCG rates, and 401(k)/IRA contribution limits for **2018–2026** (2025 reflects the One Big Beautiful Bill Act amendments; 2026 LTCG thresholds pending)
 - **India (Income Tax India):** old and new regime slabs, standard deduction, 87A rebate, surcharge thresholds, 4% cess, and 80C/80D/80CCD deduction caps for **FY 2018–2025**
 
 Badge meanings:
@@ -249,5 +248,9 @@ Key files to review:
 ## Requirements
 
 - [Bun](https://bun.sh) v1.0+
-- Anthropic API key
-- Your own tax return PDFs
+- An [Anthropic API key](https://console.anthropic.com/settings/keys) (used for PDF parsing, insights, forecast, and chat — billed per use at standard API rates)
+- Your own tax return PDFs in digital form (scanned paper returns may parse with lower accuracy)
+
+---
+
+*Forked from [brianlovin/tax-ui](https://github.com/brianlovin/tax-ui).*
