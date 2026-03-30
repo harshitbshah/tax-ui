@@ -3,7 +3,7 @@ import { Component, type ReactNode } from "react";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 
-const GITHUB_ISSUES_URL = "https://github.com/brianlovin/tax-ui/issues/new";
+const GITHUB_ISSUES_URL = "https://github.com/harshitbshah/tax-ui/issues/new";
 
 interface ErrorInfo {
   componentStack?: string;

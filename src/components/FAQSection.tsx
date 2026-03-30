@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "./Button";
 
-const AI_PRIVACY_PROMPT = `I want you to perform a security and privacy audit of Tax UI, an open source tax return parser.
+const AI_PRIVACY_PROMPT = `I want you to perform a security and privacy audit of TaxLens, an open source tax return parser.
 
 Repository: https://github.com/brianlovin/tax-ui
 
@@ -145,7 +145,7 @@ export function FAQSection() {
             >
               <div className="space-y-3 px-3 pt-1 pb-2 text-sm text-(--color-text-muted)">
                 <p>
-                  Tax UI is open source. You can review the code yourself, or ask an AI to audit it
+                  TaxLens is open source. You can review the code yourself, or ask an AI to audit it
                   for you.
                 </p>
                 <Button onClick={handleCopyPrompt} variant="secondary" size="sm" className="w-full">

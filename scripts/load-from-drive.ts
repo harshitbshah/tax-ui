@@ -1,5 +1,5 @@
 /**
- * Load historical tax return PDFs from Google Drive mount into tax-ui.
+ * Load historical tax return PDFs from Google Drive mount into TaxLens.
  *
  * Usage:
  *   cd ~/Projects/tax-ui
@@ -31,7 +31,7 @@ const RETURNS: Record<number, string> = {
 async function main() {
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.error("No API key found. Open tax-ui in the browser and enter your Anthropic API key first.");
+    console.error("No API key found. Open TaxLens in the browser and enter your Anthropic API key first.");
     process.exit(1);
   }
 

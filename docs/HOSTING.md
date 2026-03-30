@@ -1,8 +1,8 @@
-# Hosting tax-ui on OCI
+# Hosting TaxLens on OCI
 
 ## Goal
 
-Host tax-ui on Oracle Cloud Infrastructure so it's accessible from any device at any time, rather than only running locally via `tax-ui start`.
+Host TaxLens on Oracle Cloud Infrastructure so it's accessible from any device at any time, rather than only running locally via `tax-ui start`.
 
 ## Current State
 
@@ -43,7 +43,7 @@ Given the sensitivity of tax data, **Tailscale is preferred**.
 ### 3. OCI Setup
 
 - Same VM already running Wallos
-- Add a new Docker container for tax-ui
+- Add a new Docker container for TaxLens
 - If using Caddy: add a new vhost in the existing Caddy config
 - Env vars: `ANTHROPIC_API_KEY` via Docker env or OCI Vault
 
