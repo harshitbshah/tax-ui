@@ -54,7 +54,8 @@ bun run dev
 
 Open [localhost:3005](http://localhost:3005).
 
-#### Shell alias (optional)
+<details>
+<summary>Shell alias (optional)</summary>
 
 For a more convenient local workflow, add the `taxlens` alias to your shell:
 
@@ -94,7 +95,11 @@ Replace `~/path/to/taxlens` with the actual path where you cloned the repo, then
 taxlens start   # start in background
 taxlens stop    # stop the server
 taxlens logs    # tail the server log
-``` On first launch, the app will prompt you to enter your Anthropic API key — get one from [console.anthropic.com](https://console.anthropic.com/settings/keys). Alternatively, add it to a `.env` file before starting:
+```
+
+</details>
+
+On first launch, the app will prompt you to enter your Anthropic API key — get one from [console.anthropic.com](https://console.anthropic.com/settings/keys). Alternatively, add it to a `.env` file before starting:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
@@ -250,41 +255,6 @@ All data stays local. Tax return PDFs are sent to Anthropic's API (your key) for
 
 Anthropic's commercial terms prohibit training models on API customer data. See [Anthropic's Privacy Policy](https://www.anthropic.com/legal/privacy).
 
-<details>
-<summary>Security audit prompt</summary>
-
-```
-I want you to perform a security and privacy audit of TaxLens, an open source tax return parser.
-
-Repository: https://github.com/harshitbshah/tax-ui
-
-Please analyze the source code and verify:
-
-1. DATA HANDLING
-   - Tax return PDFs are sent directly to Anthropic's API for parsing
-   - No data is sent to any other third-party servers
-   - Parsed data is stored locally only
-
-2. NETWORK ACTIVITY
-   - Identify all network requests in the codebase
-   - Verify the only external calls are to Anthropic's API
-   - Check for any hidden data collection or tracking
-
-3. API KEY SECURITY
-   - Verify API keys are stored locally and not transmitted elsewhere
-   - Check that keys are not logged or exposed
-
-Key files to review:
-- src/index.ts (Bun server and API routes)
-- src/lib/parser.ts (US return parsing)
-- src/lib/india-parser.ts (India ITR parsing)
-- src/lib/country-storage.ts (generic local storage for all countries)
-- src/lib/pdf-utils.ts (PDF unwrapping)
-- src/App.tsx (React frontend)
-```
-
-</details>
-
 ---
 
 ## Requirements
@@ -295,4 +265,4 @@ Key files to review:
 
 ---
 
-*Forked from [brianlovin/tax-ui](https://github.com/brianlovin/tax-ui).*
+*Started from [brianlovin/tax-ui](https://github.com/brianlovin/tax-ui) and rebuilt into a multi-country, multi-year tax analysis tool.*
