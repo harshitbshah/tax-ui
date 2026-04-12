@@ -157,7 +157,7 @@ export function EditDialog({
               type="text"
               value={filingMethod}
               onChange={(e) => setFilingMethod(e.target.value)}
-              placeholder="CPA, FreeTaxUSA, DIY…"
+              placeholder={isIndia ? "ClearTax, Quicko, CA…" : "CPA, FreeTaxUSA, DIY…"}
               className="flex-1 rounded-lg border border-(--color-border) bg-(--color-bg-subtle) px-3 py-2 text-sm text-(--color-text) outline-none focus:border-(--color-text-muted)"
             />
           </div>
