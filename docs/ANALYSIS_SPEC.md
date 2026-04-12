@@ -1,7 +1,53 @@
 # Tax Analysis — Spec
 
 *Original brainstorm: 2026-04-10*
-*Architecture revised: 2026-04-11 (see Decision section below)*
+*Architecture revised: 2026-04-11*
+*Implemented: 2026-04-12*
+
+---
+
+## Implementation Status — COMPLETE
+
+All Phase 1 items are built and shipped. The 2025 US analysis is live in TaxLens.
+
+### What was built (vs spec)
+
+**Schema** (`src/lib/analysis-schema.ts`) — implemented as specced, plus three optional fields
+added after implementation to support richer UX:
+- `AnalysisSection.subtitle?: string` — one-liner shown when card is collapsed
+- `AnalysisSection.highlight?: { value: string; label: string }` — big stat callout at top of card body
+- `AnalysisResponse.stats?: AnalysisStat[]` — hero bar chips shown above all sections
+
+**API routes** — implemented as specced. Port is **3005** (not 3000 as written below).
+
+**AnalysisPanel UX** — implemented as specced, plus significant UX improvements added after:
+- **Hero stats bar** — 4 key numbers ($owed, total tax, effective rate, safe harbor) shown above all cards
+- **Subtitle in collapsed state** — one-liner visible when a card is collapsed so collapsing isn't an info black hole
+- **Section groups** — cards organised under three labeled dividers: "What happened" / "Capital Gains" / "Going forward"
+- **Big number callout** — `highlight` field renders as a prominent stat block at the top of the card body
+- **Watch for YEAR as checklist** — `### ` headings in `watch_next_year` render as interactive checkboxes
+
+**Skills** — `/parse-return` and `/analyze-taxes` live in **tax-planner** (not taxlens), at
+`/home/harshit-shah/Projects/tax-planner/.claude/commands/`. They run in the tax-planner context
+where the PDFs and ANALYSIS.md live, then POST to TaxLens over HTTP.
+
+**2025 data** — populated on 2026-04-12 by reading `years/2025/ANALYSIS.md` and POSTing the
+full `AnalysisResponse` (with stats, subtitles, highlights) to `/api/analysis?year=2025&country=us`.
+
+### Files created / modified
+| File | Status |
+|------|--------|
+| `src/lib/analysis-schema.ts` | ✅ Created |
+| `src/lib/analysis-cache.ts` | ✅ Created |
+| `src/lib/analysis-schema.test.ts` | ✅ Created (18 tests) |
+| `src/components/AnalysisPanel.tsx` | ✅ Created |
+| `src/index.ts` | ✅ Modified — `/api/analysis` GET/POST/DELETE added |
+| `src/components/MainPanel.tsx` | ✅ Modified — `"analysis"` added to `YearViewMode` |
+| `.gitignore` | ✅ Modified — `.analysis-cache.json` added |
+
+### What remains (Phase 2)
+- Security-level capital gains detail from supplemental source docs (Robinhood 1099-B, Zerodha P&L)
+- See Phase 2 section at the bottom of this doc
 
 ---
 
