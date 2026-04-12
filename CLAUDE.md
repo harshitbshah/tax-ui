@@ -167,23 +167,6 @@ Run before committing:
 - `bun run lint` (includes Prettier formatting checks)
 - `bunx tsc --noEmit`
 
-## Backup
-
-Run `./scripts/backup-to-gdrive.sh` after updating TaxLens with a new year's data.
-
-| File | Google Drive destination |
-|------|--------------------------|
-| `.tax-returns.json` | `Tax Return/USA/taxlens/` |
-| `.india-tax-returns.json` | `Tax Return/USA/taxlens/` |
-| `.analysis-cache.json` | `Tax Return/USA/taxlens/` |
-| `.insights-cache.json` | `Tax Return/USA/taxlens/` |
-| `.retirement-accounts.json` | `Tax Return/USA/taxlens/` |
-
-**Full path:** `~/gdrive/Important Documents/Documents/Tax Return/USA/taxlens/`
-
-These are hidden files (dot-prefixed) — use Ctrl+H in the file browser to show them.
-All other TaxLens files are in git and need no manual backup.
-
 ## Security
 
 This is a public repo. Never commit or push:

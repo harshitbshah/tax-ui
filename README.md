@@ -257,6 +257,33 @@ Anthropic's commercial terms prohibit training models on API customer data. See 
 
 ---
 
+## Backup
+
+TaxLens data files are gitignored and exist only on your local machine. Back them up manually
+after adding a new year's data:
+
+```bash
+cd /home/harshit-shah/Projects/taxlens
+./scripts/backup-to-gdrive.sh
+```
+
+**What gets backed up:**
+
+| File | Contains |
+|------|----------|
+| `.tax-returns.json` | All parsed US returns (all years) |
+| `.india-tax-returns.json` | All parsed India returns (all years) |
+| `.analysis-cache.json` | Analysis tab content |
+| `.insights-cache.json` | Per-year AI insights |
+| `.retirement-accounts.json` | Retirement account data |
+
+**Google Drive destination:**
+`~/gdrive/Important Documents/Documents/Tax Return/USA/taxlens/`
+
+Note: these are hidden files (dot-prefixed) — press **Ctrl+H** in the file browser to show them.
+
+---
+
 ## Requirements
 
 - [Bun](https://bun.sh) v1.0+
