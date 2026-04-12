@@ -179,7 +179,7 @@ export function EditDialog({
                     placeholder="STT, Brokerage, GST…"
                     className="flex-1 rounded-lg border border-(--color-border) bg-(--color-bg-subtle) px-3 py-2 text-sm text-(--color-text) outline-none focus:border-(--color-text-muted)"
                   />
-                  <div className="relative w-36">
+                  <div className="relative w-48">
                     <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-(--color-text-muted)">
                       {currency}
                     </span>
@@ -189,7 +189,7 @@ export function EditDialog({
                       value={charge.amount}
                       onChange={(e) => updateCharge(i, "amount", e.target.value)}
                       placeholder="0"
-                      className="w-full rounded-lg border border-(--color-border) bg-(--color-bg-subtle) py-2 pr-3 pl-7 text-sm text-(--color-text) outline-none focus:border-(--color-text-muted)"
+                      className="w-full rounded-lg border border-(--color-border) bg-(--color-bg-subtle) py-2 pr-3 pl-8 text-sm text-(--color-text) outline-none focus:border-(--color-text-muted)"
                     />
                   </div>
                   <button
