@@ -13,6 +13,8 @@ import {
   getCountryReturns,
   saveCountryReturn,
 } from "./lib/country-storage";
+import { deleteFilingCosts, getFilingCosts, saveFilingCosts } from "./lib/filing-costs-cache";
+import { parseCountryCosts } from "./lib/filing-costs-schema";
 import { clearForecastCache, getForecastCache, saveForecastCache } from "./lib/forecast-cache";
 import { getForecastProfile, saveForecastProfile } from "./lib/forecast-profile";
 import { generateForecast } from "./lib/forecaster";
@@ -464,6 +466,37 @@ const routes: Record<string, any> = {
 
     if (req.method === "DELETE") {
       await clearAnalysisCache(year, country);
+      return Response.json({ success: true });
+    }
+
+    return new Response("Method Not Allowed", { status: 405 });
+  },
+  // GET ?country=X → all years for that country. POST/DELETE ?year=Y&country=X → save/remove.
+  "/api/filing-costs": async (req: Request) => {
+    const url = new URL(req.url);
+    const country = url.searchParams.get("country") || "us";
+
+    if (req.method === "GET") {
+      return Response.json(await getFilingCosts(country));
+    }
+
+    const year = Number(url.searchParams.get("year"));
+    if (isNaN(year) || year === 0) return Response.json({ error: "Invalid year" }, { status: 400 });
+
+    if (req.method === "POST") {
+      let costs;
+      try {
+        costs = parseCountryCosts(await req.json());
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Invalid JSON";
+        return Response.json({ error: message }, { status: 400 });
+      }
+      await saveFilingCosts(year, country, costs);
+      return Response.json(costs);
+    }
+
+    if (req.method === "DELETE") {
+      await deleteFilingCosts(year, country);
       return Response.json({ success: true });
     }
 

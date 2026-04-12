@@ -1,5 +1,6 @@
 import { formatINR, formatINRCompact } from "../lib/format";
 import type { IndianTaxReturn } from "../lib/schema";
+import { ComplianceCostsSection } from "./ComplianceCostsSection";
 
 interface Props {
   returns: Record<number, IndianTaxReturn>;
@@ -160,6 +161,12 @@ export function IndiaSummaryView({ returns }: Props) {
           })}
         </tbody>
       </table>
+      <ComplianceCostsSection
+        country="india"
+        years={years}
+        currency="₹"
+        yearLabel={(fy) => `FY ${fy}-${String(fy + 1).slice(-2)}`}
+      />
     </div>
   );
 }

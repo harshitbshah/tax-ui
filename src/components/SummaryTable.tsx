@@ -7,6 +7,7 @@ import { netGainLoss } from "../lib/retirement-accounts-schema";
 import type { TaxReturn } from "../lib/schema";
 import { getTotalTax } from "../lib/tax-calculations";
 import { ChangeCell } from "./ChangeCell";
+import { ComplianceCostsSection } from "./ComplianceCostsSection";
 import { type ColumnMeta, Table } from "./Table";
 
 interface Props {
@@ -432,14 +433,17 @@ export function SummaryTable({ returns, retirementAccounts }: Props) {
   const isRowHoverDisabled = (row: SummaryRow) => row.isHeader === true;
 
   return (
-    <div className="h-full w-full text-sm">
-      <Table
-        data={rows}
-        columns={columns}
-        storageKey="summary-table"
-        getRowClassName={getRowClassName}
-        isRowHoverDisabled={isRowHoverDisabled}
-      />
+    <div className="flex h-full w-full flex-col text-sm">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <Table
+          data={rows}
+          columns={columns}
+          storageKey="summary-table"
+          getRowClassName={getRowClassName}
+          isRowHoverDisabled={isRowHoverDisabled}
+        />
+      </div>
+      <ComplianceCostsSection country="us" years={years} currency="$" />
     </div>
   );
 }
