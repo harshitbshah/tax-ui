@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { CLIENT_REGISTRY } from "../countries/views";
 import { chargesTotal, complianceTotal, type CountryCosts } from "../lib/filing-costs-schema";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
@@ -34,7 +35,10 @@ export function EditDialog({
   onClose,
   onSaved,
 }: EditDialogProps) {
-  const isIndia = country === "india";
+  const countryPlugin = CLIENT_REGISTRY[country];
+  const supportsCharges = countryPlugin?.compliance?.supportsCharges ?? false;
+  const filingMethodPlaceholder =
+    countryPlugin?.compliance?.filingMethodPlaceholder ?? "Tax software, CPA, DIY…";
 
   const [filingAmount, setFilingAmount] = useState("");
   const [filingMethod, setFilingMethod] = useState("");
@@ -48,10 +52,10 @@ export function EditDialog({
     setFilingMethod(existing?.filing?.method ?? "");
     setCharges(
       existing?.charges?.map((c) => ({ label: c.label, amount: String(c.amount) })) ??
-        (isIndia ? [{ label: "", amount: "" }] : []),
+        (supportsCharges ? [{ label: "", amount: "" }] : []),
     );
     setError(null);
-  }, [open, existing, isIndia]);
+  }, [open, existing, supportsCharges]);
 
   function addCharge() {
     setCharges((prev) => [...prev, { label: "", amount: "" }]);
@@ -79,7 +83,7 @@ export function EditDialog({
       if (filingMethod.trim()) costs.filing.method = filingMethod.trim();
     }
 
-    if (isIndia) {
+    if (supportsCharges) {
       const validCharges = charges.filter((c) => c.label.trim() && c.amount.trim() !== "");
       if (validCharges.length > 0) {
         const parsed = validCharges.map((c) => ({
@@ -157,14 +161,14 @@ export function EditDialog({
               type="text"
               value={filingMethod}
               onChange={(e) => setFilingMethod(e.target.value)}
-              placeholder={isIndia ? "ClearTax, Quicko, CA…" : "CPA, FreeTaxUSA, DIY…"}
+              placeholder={filingMethodPlaceholder}
               className="flex-1 rounded-lg border border-(--color-border) bg-(--color-bg-subtle) px-3 py-2 text-sm text-(--color-text) outline-none focus:border-(--color-text-muted)"
             />
           </div>
         </div>
 
         {/* Brokerage & other charges (India only) */}
-        {isIndia && (
+        {supportsCharges && (
           <div>
             <p className="mb-1.5 text-xs font-medium text-(--color-text-muted)">
               Brokerage &amp; other charges
@@ -226,7 +230,7 @@ export function ComplianceCostsSection({
 }: Props) {
   const [costs, setCosts] = useState<Record<number, CountryCosts>>({});
   const [editingYear, setEditingYear] = useState<number | null>(null);
-  const isIndia = country === "india";
+  const supportsCharges = CLIENT_REGISTRY[country]?.compliance?.supportsCharges ?? false;
 
   useEffect(() => {
     fetch(`/api/filing-costs?country=${country}`)
@@ -248,7 +252,7 @@ export function ComplianceCostsSection({
           <tr className="text-xs text-(--color-text-muted)">
             <th className="pb-2 text-left font-medium">Year</th>
             <th className="pb-2 text-right font-medium">Filing</th>
-            {isIndia && <th className="pb-2 text-right font-medium">Charges</th>}
+            {supportsCharges && <th className="pb-2 text-right font-medium">Charges</th>}
             <th className="pb-2 text-right font-medium">Total</th>
             <th className="pb-2 text-right font-medium" />
           </tr>
@@ -283,7 +287,7 @@ export function ComplianceCostsSection({
                   )}
                 </td>
 
-                {isIndia && (
+                {supportsCharges && (
                   <td className="py-2 text-right tabular-nums">
                     {charges !== null && charges > 0 ? (
                       <span className="text-(--color-text)">

@@ -37,6 +37,11 @@ export const indiaClientPlugin: CountryClientPlugin = {
     }>,
   },
 
+  compliance: {
+    filingMethodPlaceholder: "ClearTax, Quicko, CA…",
+    supportsCharges: true,
+  },
+
   forecast: {
     ExtensionCard: IndiaForecastCard,
   },

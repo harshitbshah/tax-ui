@@ -39,6 +39,10 @@ export const usClientPlugin: CountryClientPlugin = {
     }>,
   },
 
+  compliance: {
+    filingMethodPlaceholder: "CPA, FreeTaxUSA, DIY…",
+  },
+
   forecast: {
     ExtensionCard: UsBracketCard,
   },

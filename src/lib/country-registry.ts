@@ -103,6 +103,14 @@ export interface CountryClientPlugin {
     SummaryReceipt?: React.ComponentType<{ returns: Record<number, unknown> }>;
   };
 
+  // Country-specific compliance cost config (optional).
+  compliance?: {
+    // Placeholder shown in the "filing method" input of the cost-of-compliance dialog.
+    filingMethodPlaceholder?: string;
+    // Whether to show the brokerage/exchange charges section (e.g. India: STT, GST, etc.).
+    supportsCharges?: boolean;
+  };
+
   // Country-specific forecast card rendered below the main forecast metrics (optional).
   forecast?: {
     ExtensionCard: React.ComponentType<{ data: unknown }>;
