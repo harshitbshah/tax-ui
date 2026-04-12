@@ -91,6 +91,20 @@ When adding new UI patterns, check if Base UI has a primitive first: https://bas
 
 ## Patterns
 
+### No hardcoded country checks
+**Never** write `country === "india"`, `isUs`, `isIndia`, or any string comparison against a country code in shared components or `MainPanel`. These checks couple generic UI to specific countries and break when a new country is added.
+
+Instead, put the behaviour in the country's plugin:
+- UI variation → add an optional field to `CountryClientPlugin` (in `country-registry.ts`), set it in the country's `views.tsx`, look it up via `CLIENT_REGISTRY[country]` at the call site.
+- Server variation → same pattern on `CountryServerPlugin` / `SERVER_REGISTRY`.
+
+**Examples already in the codebase:**
+- `CountryClientPlugin.components.StatsHeader` — each country registers its own header; `MainPanel` renders it generically.
+- `CountryClientPlugin.compliance.filingMethodPlaceholder` — US gets "CPA, FreeTaxUSA…", India gets "ClearTax, Quicko…".
+- `CountryClientPlugin.compliance.supportsCharges` — controls whether the brokerage charges section appears in the compliance dialog.
+
+The only legitimate `isUs` / `isIndia` variables are inside a country's own plugin file (`src/countries/us/` or `src/countries/india/`).
+
 ### Modal State
 Use a single union state for mutually exclusive modals:
 ```tsx
